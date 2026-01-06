@@ -274,6 +274,173 @@ router.delete('/:id', authUser, async (req, res) => {
 });
 
 // ===========================================
+// POST /tickets/:id/pay - Paiement simulé
+// ===========================================
+router.post('/:id/pay', authUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_method, card_number, card_holder } = req.body;
+
+    // Vérifier que le ticket existe et appartient à l'utilisateur
+    const ticket = await get(
+      'SELECT * FROM tickets WHERE id = ? AND user_id = ?',
+      [id, req.user.id]
+    );
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket non trouvé'
+      });
+    }
+
+    // Vérifier que le ticket n'est pas déjà payé
+    if (ticket.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce ticket est déjà payé'
+      });
+    }
+
+    // Validation du moyen de paiement
+    const validMethods = ['card', 'paypal', 'cash', 'mobile_money'];
+    const method = payment_method || 'card';
+
+    if (!validMethods.includes(method)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Moyen de paiement invalide'
+      });
+    }
+
+    // Simulation de paiement (toujours réussi pour le projet)
+    // En production, intégrer une vraie passerelle de paiement
+
+    // Générer un QR code unique pour le ticket
+    const qrCode = `WAC-TICKET-${ticket.id}-${Date.now().toString(36).toUpperCase()}`;
+
+    // Mettre à jour le ticket
+    await run(
+      `UPDATE tickets SET 
+        status = 'paid',
+        payment_method = ?,
+        payment_date = CURRENT_TIMESTAMP,
+        qr_code = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [method, qrCode, id]
+    );
+
+    // Récupérer le ticket mis à jour avec les infos du match
+    const paidTicket = await get(`
+      SELECT t.*, m.opponent, m.competition, m.match_date, m.venue
+      FROM tickets t
+      JOIN matches m ON t.match_id = m.id
+      WHERE t.id = ?
+    `, [id]);
+
+    res.json({
+      success: true,
+      message: '🎉 Paiement réussi! Votre ticket est prêt.',
+      data: {
+        ticket: paidTicket,
+        payment: {
+          method: method,
+          amount: ticket.total_amount,
+          currency: 'MAD',
+          transaction_id: `TXN-${Date.now()}`,
+          date: new Date().toISOString()
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur paiement ticket:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors du paiement'
+    });
+  }
+});
+
+// ===========================================
+// GET /tickets/:id/verify - Vérifier un ticket (scan QR)
+// ===========================================
+router.get('/:id/verify', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { qr_code } = req.query;
+
+    let ticket;
+
+    if (qr_code) {
+      // Recherche par QR code
+      ticket = await get(`
+        SELECT t.*, m.opponent, m.competition, m.match_date, m.venue, u.name as user_name
+        FROM tickets t
+        JOIN matches m ON t.match_id = m.id
+        JOIN users u ON t.user_id = u.id
+        WHERE t.qr_code = ?
+      `, [qr_code]);
+    } else {
+      // Recherche par ID
+      ticket = await get(`
+        SELECT t.*, m.opponent, m.competition, m.match_date, m.venue, u.name as user_name
+        FROM tickets t
+        JOIN matches m ON t.match_id = m.id
+        JOIN users u ON t.user_id = u.id
+        WHERE t.id = ?
+      `, [id]);
+    }
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        valid: false,
+        message: 'Ticket non trouvé'
+      });
+    }
+
+    // Vérifier le statut
+    if (ticket.status !== 'paid') {
+      return res.json({
+        success: true,
+        valid: false,
+        message: 'Ticket non payé',
+        data: {
+          status: ticket.status
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      valid: true,
+      message: '✅ Ticket valide',
+      data: {
+        ticket_id: ticket.id,
+        user_name: ticket.user_name,
+        match: `WAC vs ${ticket.opponent}`,
+        competition: ticket.competition,
+        date: ticket.match_date,
+        venue: ticket.venue,
+        section: ticket.seat_section,
+        seat: ticket.seat_number,
+        quantity: ticket.quantity,
+        status: ticket.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur vérification ticket:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
+  }
+});
+
+// ===========================================
 // GET /tickets/admin/all - Tous les tickets (admin)
 // ===========================================
 router.get('/admin/all', authAdmin, async (req, res) => {
