@@ -94,6 +94,110 @@ const seedPlayers = async () => {
 };
 
 // ===========================================
+// CRÉER LES MATCHS WAC
+// ===========================================
+const seedMatches = async () => {
+  try {
+    // Vérifier si des matchs existent déjà
+    const existingMatches = await get('SELECT id FROM matches LIMIT 1');
+    
+    if (existingMatches) {
+      console.log('ℹ️  Des matchs existent déjà');
+      return;
+    }
+
+    // Matchs WAC (calendrier exemple)
+    const matches = [
+      // Matchs à venir
+      {
+        opponent: 'Raja Club Athletic',
+        competition: 'Botola Pro',
+        match_date: '2026-01-15 20:00:00',
+        venue: 'Stade Mohammed V',
+        is_home: 1,
+        ticket_price: 100.00,
+        available_seats: 45000,
+        status: 'upcoming'
+      },
+      {
+        opponent: 'Al Ahly SC',
+        competition: 'Ligue des Champions CAF',
+        match_date: '2026-01-22 21:00:00',
+        venue: 'Stade Mohammed V',
+        is_home: 1,
+        ticket_price: 150.00,
+        available_seats: 45000,
+        status: 'upcoming'
+      },
+      {
+        opponent: 'AS FAR',
+        competition: 'Botola Pro',
+        match_date: '2026-01-29 18:00:00',
+        venue: 'Stade Prince Moulay Abdellah',
+        is_home: 0,
+        ticket_price: 80.00,
+        available_seats: 0,
+        status: 'upcoming'
+      },
+      {
+        opponent: 'Espérance Tunis',
+        competition: 'Ligue des Champions CAF',
+        match_date: '2026-02-05 20:00:00',
+        venue: 'Stade Mohammed V',
+        is_home: 1,
+        ticket_price: 150.00,
+        available_seats: 45000,
+        status: 'upcoming'
+      },
+      // Matchs passés (résultats)
+      {
+        opponent: 'Maghreb Fès',
+        competition: 'Botola Pro',
+        match_date: '2026-01-05 18:00:00',
+        venue: 'Stade Mohammed V',
+        is_home: 1,
+        score_wac: 3,
+        score_opponent: 1,
+        ticket_price: 50.00,
+        available_seats: 0,
+        status: 'finished'
+      },
+      {
+        opponent: 'Mamelodi Sundowns',
+        competition: 'Ligue des Champions CAF',
+        match_date: '2025-12-20 20:00:00',
+        venue: 'Stade Mohammed V',
+        is_home: 1,
+        score_wac: 2,
+        score_opponent: 0,
+        ticket_price: 120.00,
+        available_seats: 0,
+        status: 'finished'
+      }
+    ];
+
+    for (const match of matches) {
+      await run(
+        `INSERT INTO matches (
+          opponent, competition, match_date, venue, is_home,
+          score_wac, score_opponent, ticket_price, available_seats, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          match.opponent, match.competition, match.match_date, match.venue,
+          match.is_home, match.score_wac || null, match.score_opponent || null,
+          match.ticket_price, match.available_seats, match.status
+        ]
+      );
+    }
+
+    console.log(`✅ ${matches.length} matchs WAC ajoutés`);
+
+  } catch (error) {
+    console.error('❌ Erreur seed matchs:', error);
+  }
+};
+
+// ===========================================
 // EXÉCUTER TOUS LES SEEDS
 // ===========================================
 const seedAll = async () => {
@@ -103,10 +207,11 @@ const seedAll = async () => {
   
   await seedAdmin();
   await seedPlayers();
+  await seedMatches();
   
   console.log('===========================================');
   console.log('✅ Seed terminé');
   console.log('===========================================');
 };
 
-module.exports = { seedAdmin, seedPlayers, seedAll };
+module.exports = { seedAdmin, seedPlayers, seedMatches, seedAll };
