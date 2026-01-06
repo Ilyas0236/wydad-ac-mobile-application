@@ -53,36 +53,36 @@ const seedPlayers = async () => {
       return;
     }
 
-    // Joueurs WAC (effectif exemple)
+    // Joueurs WAC (effectif exemple) avec images
     const players = [
       // Gardiens
-      { name: 'Ahmed Reda Tagnaouti', number: 1, position: 'goalkeeper', nationality: 'Maroc', height: 190, weight: 82 },
-      { name: 'Anas Zniti', number: 30, position: 'goalkeeper', nationality: 'Maroc', height: 188, weight: 80 },
+      { name: 'Ahmed Reda Tagnaouti', number: 1, position: 'goalkeeper', nationality: 'Maroc', height: 190, weight: 82, image: 'https://ui-avatars.com/api/?name=Ahmed+Tagnaouti&background=BE1522&color=fff&size=200' },
+      { name: 'Anas Zniti', number: 30, position: 'goalkeeper', nationality: 'Maroc', height: 188, weight: 80, image: 'https://ui-avatars.com/api/?name=Anas+Zniti&background=BE1522&color=fff&size=200' },
       
       // Défenseurs
-      { name: 'Amine Aboulfath', number: 3, position: 'defender', nationality: 'Maroc', height: 183, weight: 76 },
-      { name: 'Yahya Jabrane', number: 4, position: 'defender', nationality: 'Maroc', height: 180, weight: 74 },
-      { name: 'Achraf Dari', number: 5, position: 'defender', nationality: 'Maroc', height: 185, weight: 78 },
-      { name: 'Issa Kaboré', number: 2, position: 'defender', nationality: 'Burkina Faso', height: 176, weight: 70 },
+      { name: 'Amine Aboulfath', number: 3, position: 'defender', nationality: 'Maroc', height: 183, weight: 76, image: 'https://ui-avatars.com/api/?name=Amine+Aboulfath&background=BE1522&color=fff&size=200' },
+      { name: 'Yahya Jabrane', number: 4, position: 'defender', nationality: 'Maroc', height: 180, weight: 74, image: 'https://ui-avatars.com/api/?name=Yahya+Jabrane&background=BE1522&color=fff&size=200' },
+      { name: 'Achraf Dari', number: 5, position: 'defender', nationality: 'Maroc', height: 185, weight: 78, image: 'https://ui-avatars.com/api/?name=Achraf+Dari&background=BE1522&color=fff&size=200' },
+      { name: 'Issa Kaboré', number: 2, position: 'defender', nationality: 'Burkina Faso', height: 176, weight: 70, image: 'https://ui-avatars.com/api/?name=Issa+Kabore&background=BE1522&color=fff&size=200' },
       
       // Milieux
-      { name: 'Yahya Attiyat Allah', number: 17, position: 'midfielder', nationality: 'Maroc', height: 178, weight: 72 },
-      { name: 'Jalal Daoudi', number: 6, position: 'midfielder', nationality: 'Maroc', height: 175, weight: 70 },
-      { name: 'Simon Msougar', number: 8, position: 'midfielder', nationality: 'Maroc', height: 180, weight: 75 },
-      { name: 'Reda Slim', number: 14, position: 'midfielder', nationality: 'Maroc', height: 177, weight: 71 },
+      { name: 'Yahya Attiyat Allah', number: 17, position: 'midfielder', nationality: 'Maroc', height: 178, weight: 72, image: 'https://ui-avatars.com/api/?name=Yahya+Attiyat&background=BE1522&color=fff&size=200' },
+      { name: 'Jalal Daoudi', number: 6, position: 'midfielder', nationality: 'Maroc', height: 175, weight: 70, image: 'https://ui-avatars.com/api/?name=Jalal+Daoudi&background=BE1522&color=fff&size=200' },
+      { name: 'Simon Msougar', number: 8, position: 'midfielder', nationality: 'Maroc', height: 180, weight: 75, image: 'https://ui-avatars.com/api/?name=Simon+Msougar&background=BE1522&color=fff&size=200' },
+      { name: 'Reda Slim', number: 14, position: 'midfielder', nationality: 'Maroc', height: 177, weight: 71, image: 'https://ui-avatars.com/api/?name=Reda+Slim&background=BE1522&color=fff&size=200' },
       
       // Attaquants
-      { name: 'Ayoub El Kaabi', number: 9, position: 'forward', nationality: 'Maroc', height: 185, weight: 80, goals: 15 },
-      { name: 'Zouhair El Moutaraji', number: 11, position: 'forward', nationality: 'Maroc', height: 175, weight: 70, goals: 8 },
-      { name: 'Guy Mbenza', number: 7, position: 'forward', nationality: 'RD Congo', height: 182, weight: 77, goals: 5 },
-      { name: 'Mohamed Ounajem', number: 10, position: 'forward', nationality: 'Maroc', height: 179, weight: 73, goals: 4 }
+      { name: 'Ayoub El Kaabi', number: 9, position: 'forward', nationality: 'Maroc', height: 185, weight: 80, goals: 15, image: 'https://ui-avatars.com/api/?name=Ayoub+El+Kaabi&background=BE1522&color=fff&size=200' },
+      { name: 'Zouhair El Moutaraji', number: 11, position: 'forward', nationality: 'Maroc', height: 175, weight: 70, goals: 8, image: 'https://ui-avatars.com/api/?name=Zouhair+Moutaraji&background=BE1522&color=fff&size=200' },
+      { name: 'Guy Mbenza', number: 7, position: 'forward', nationality: 'RD Congo', height: 182, weight: 77, goals: 5, image: 'https://ui-avatars.com/api/?name=Guy+Mbenza&background=BE1522&color=fff&size=200' },
+      { name: 'Mohamed Ounajem', number: 10, position: 'forward', nationality: 'Maroc', height: 179, weight: 73, goals: 4, image: 'https://ui-avatars.com/api/?name=Mohamed+Ounajem&background=BE1522&color=fff&size=200' }
     ];
 
     for (const player of players) {
       await run(
-        `INSERT INTO players (name, number, position, nationality, height, weight, goals) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [player.name, player.number, player.position, player.nationality, player.height, player.weight, player.goals || 0]
+        `INSERT INTO players (name, number, position, nationality, height, weight, goals, image) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [player.name, player.number, player.position, player.nationality, player.height, player.weight, player.goals || 0, player.image]
       );
     }
 
@@ -210,7 +210,7 @@ const seedProducts = async () => {
       return;
     }
 
-    // Produits boutique WAC
+    // Produits boutique WAC avec images
     const products = [
       // Maillots
       {
@@ -221,7 +221,8 @@ const seedProducts = async () => {
         stock: 100,
         sizes: 'S,M,L,XL,XXL',
         colors: 'Rouge/Blanc',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Maillot+WAC'
       },
       {
         name: 'Maillot Extérieur WAC 2025/2026',
@@ -231,7 +232,8 @@ const seedProducts = async () => {
         stock: 80,
         sizes: 'S,M,L,XL,XXL',
         colors: 'Noir/Or',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/1A1A1A/FFD700?text=Maillot+Away'
       },
       {
         name: 'Maillot Third WAC 2025/2026',
@@ -241,7 +243,8 @@ const seedProducts = async () => {
         stock: 60,
         sizes: 'S,M,L,XL',
         colors: 'Blanc/Rouge',
-        is_featured: 0
+        is_featured: 0,
+        image: 'https://placehold.co/400x400/FFFFFF/BE1522?text=Maillot+Third'
       },
       // Vêtements
       {
@@ -252,7 +255,8 @@ const seedProducts = async () => {
         stock: 50,
         sizes: 'S,M,L,XL,XXL',
         colors: 'Rouge,Blanc,Noir',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Polo+WAC'
       },
       {
         name: 'Survêtement Complet WAC',
@@ -262,7 +266,8 @@ const seedProducts = async () => {
         stock: 40,
         sizes: 'S,M,L,XL',
         colors: 'Rouge/Noir',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/1A1A1A/BE1522?text=Survetement'
       },
       {
         name: 'Sweat à Capuche WAC',
@@ -272,7 +277,8 @@ const seedProducts = async () => {
         stock: 45,
         sizes: 'S,M,L,XL,XXL',
         colors: 'Rouge,Gris,Noir',
-        is_featured: 0
+        is_featured: 0,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Hoodie+WAC'
       },
       // Accessoires
       {
@@ -283,7 +289,8 @@ const seedProducts = async () => {
         stock: 100,
         sizes: 'Unique',
         colors: 'Rouge,Blanc,Noir',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Casquette'
       },
       {
         name: 'Bonnet WAC',
@@ -293,7 +300,8 @@ const seedProducts = async () => {
         stock: 80,
         sizes: 'Unique',
         colors: 'Rouge/Blanc',
-        is_featured: 0
+        is_featured: 0,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Bonnet'
       },
       // Écharpes
       {
@@ -304,7 +312,8 @@ const seedProducts = async () => {
         stock: 200,
         sizes: 'Unique',
         colors: 'Rouge/Blanc',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Echarpe+WAC'
       },
       {
         name: 'Drapeau WAC Grande Taille',
@@ -314,7 +323,8 @@ const seedProducts = async () => {
         stock: 100,
         sizes: '150x90cm',
         colors: 'Rouge/Blanc',
-        is_featured: 0
+        is_featured: 0,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Drapeau+WAC'
       },
       // Équipement
       {
@@ -325,7 +335,8 @@ const seedProducts = async () => {
         stock: 50,
         sizes: 'Taille 5',
         colors: 'Rouge/Blanc',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Ballon+WAC'
       },
       {
         name: 'Sac à Dos WAC',
@@ -335,7 +346,8 @@ const seedProducts = async () => {
         stock: 40,
         sizes: 'Unique',
         colors: 'Noir/Rouge',
-        is_featured: 0
+        is_featured: 0,
+        image: 'https://placehold.co/400x400/1A1A1A/BE1522?text=Sac+WAC'
       },
       // Enfants
       {
@@ -346,18 +358,19 @@ const seedProducts = async () => {
         stock: 60,
         sizes: '4-6ans,6-8ans,8-10ans,10-12ans',
         colors: 'Rouge/Blanc',
-        is_featured: 1
+        is_featured: 1,
+        image: 'https://placehold.co/400x400/BE1522/FFFFFF?text=Kit+Enfant'
       }
     ];
 
     for (const product of products) {
       await run(
         `INSERT INTO products (
-          name, description, price, category, stock, sizes, colors, is_featured
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          name, description, price, category, stock, sizes, colors, is_featured, image
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           product.name, product.description, product.price, product.category,
-          product.stock, product.sizes, product.colors, product.is_featured
+          product.stock, product.sizes, product.colors, product.is_featured, product.image
         ]
       );
     }
@@ -382,7 +395,7 @@ const seedNews = async () => {
       return;
     }
 
-    // Actualités WAC
+    // Actualités WAC avec images
     const newsItems = [
       {
         title: 'Le Wydad remporte le derby casablancais !',
@@ -396,7 +409,8 @@ Cette victoire permet au Wydad de consolider sa place de leader au classement de
         summary: 'Victoire 2-1 du WAC face au Raja dans un stade Mohammed V en fusion. El Kaabi et El Moutaraji buteurs.',
         category: 'match',
         is_featured: 1,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/BE1522/FFFFFF?text=DERBY+WAC+2-1'
       },
       {
         title: 'Transfert: Un nouveau renfort pour l\'attaque wydadie',
@@ -410,7 +424,8 @@ Le président du club s'est félicité de cette recrue: "C'est un joueur de qual
         summary: 'Le WAC officialise l\'arrivée d\'un nouveau renfort offensif pour la seconde partie de saison.',
         category: 'transfer',
         is_featured: 1,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/1A1A1A/FFD700?text=NOUVEAU+TRANSFERT'
       },
       {
         title: 'Ligue des Champions CAF: Le WAC qualifié pour les quarts !',
@@ -424,7 +439,8 @@ L'objectif est clair: remporter une 4ème Ligue des Champions pour le club le pl
         summary: 'Le WAC termine premier de son groupe et se qualifie pour les quarts de finale de la Ligue des Champions CAF.',
         category: 'match',
         is_featured: 1,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/FFD700/1A1A1A?text=CAF+CHAMPIONS+LEAGUE'
       },
       {
         title: 'Journée portes ouvertes au complexe Mohammed VI',
@@ -443,7 +459,8 @@ Une occasion unique de découvrir les coulisses du club et de rencontrer vos jou
         summary: 'Journée portes ouvertes au complexe Mohammed VI avec rencontre des joueurs et animations.',
         category: 'club',
         is_featured: 0,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/BE1522/FFFFFF?text=PORTES+OUVERTES'
       },
       {
         title: 'Le centre de formation WAC produit un nouveau talent',
@@ -457,7 +474,8 @@ Le joueur a signé son premier contrat professionnel de 4 ans avec le club de so
         summary: 'Un jeune talent de 17 ans issu du centre de formation signe son premier contrat professionnel.',
         category: 'youth',
         is_featured: 0,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/00AA00/FFFFFF?text=ACADEMIE+WAC'
       },
       {
         title: 'Les Winners préparent un tifo spectaculaire',
@@ -471,7 +489,8 @@ Le message est clair: montrer au monde entier la passion des supporters wydadis.
         summary: 'Les Winners annoncent un tifo historique pour le prochain match à domicile.',
         category: 'fans',
         is_featured: 0,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/BE1522/FFFFFF?text=TIFO+WINNERS'
       },
       {
         title: 'Retour sur le titre de 1992: 30 ans déjà !',
@@ -485,7 +504,8 @@ Les anciens joueurs seront présents pour partager leurs souvenirs avec les supp
         summary: 'Le WAC célèbre les 30 ans de son premier titre continental avec une cérémonie d\'hommage.',
         category: 'history',
         is_featured: 0,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/FFD700/BE1522?text=1992+CHAMPIONS'
       },
       {
         title: 'Nouvelle collection 2026 disponible en boutique',
@@ -503,16 +523,17 @@ Portez fièrement les couleurs de votre club !`,
         summary: 'La nouvelle collection 2026 est disponible avec 10% de réduction jusqu\'à la fin du mois.',
         category: 'club',
         is_featured: 1,
-        is_published: 1
+        is_published: 1,
+        image: 'https://placehold.co/800x400/BE1522/FFFFFF?text=COLLECTION+2026'
       }
     ];
 
     for (const news of newsItems) {
       await run(
         `INSERT INTO news (
-          title, content, summary, category, is_featured, is_published, published_at
-        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [news.title, news.content, news.summary, news.category, news.is_featured, news.is_published]
+          title, content, summary, category, image, is_featured, is_published, published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [news.title, news.content, news.summary, news.category, news.image, news.is_featured, news.is_published]
       );
     }
 
