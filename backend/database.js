@@ -79,10 +79,13 @@ const initDatabase = () => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           title VARCHAR(255) NOT NULL,
           content TEXT NOT NULL,
+          summary TEXT,
           image VARCHAR(255),
           category VARCHAR(50) DEFAULT 'general',
           is_featured BOOLEAN DEFAULT 0,
-          published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          is_published BOOLEAN DEFAULT 1,
+          views INTEGER DEFAULT 0,
+          published_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )

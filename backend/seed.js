@@ -370,6 +370,160 @@ const seedProducts = async () => {
 };
 
 // ===========================================
+// CRÉER LES ACTUALITÉS WAC
+// ===========================================
+const seedNews = async () => {
+  try {
+    // Vérifier si des news existent déjà
+    const existingNews = await get('SELECT id FROM news LIMIT 1');
+    
+    if (existingNews) {
+      console.log('ℹ️  Des actualités existent déjà');
+      return;
+    }
+
+    // Actualités WAC
+    const newsItems = [
+      {
+        title: 'Le Wydad remporte le derby casablancais !',
+        content: `Le Wydad Athletic Club a remporté une victoire éclatante face au Raja lors du derby casablancais. 
+        
+Un match intense qui s'est soldé par un score de 2-1 en faveur des Rouge et Blanc. Les buts ont été inscrits par Ayoub El Kaabi (35') et Zouhair El Moutaraji (78').
+
+Le stade Mohammed V était comble avec plus de 45 000 supporters qui ont créé une ambiance exceptionnelle. Les Winners ont une fois de plus montré leur soutien indéfectible au club.
+
+Cette victoire permet au Wydad de consolider sa place de leader au classement de la Botola Pro.`,
+        summary: 'Victoire 2-1 du WAC face au Raja dans un stade Mohammed V en fusion. El Kaabi et El Moutaraji buteurs.',
+        category: 'match',
+        is_featured: 1,
+        is_published: 1
+      },
+      {
+        title: 'Transfert: Un nouveau renfort pour l\'attaque wydadie',
+        content: `Le Wydad Athletic Club officialise l'arrivée d'un nouveau renfort offensif pour la seconde partie de saison.
+
+Le joueur international rejoint le club pour un contrat de 3 ans. Il apportera son expérience et sa qualité technique à l'effectif de l'entraîneur.
+
+"Je suis très heureux de rejoindre un club aussi prestigieux que le Wydad. C'est un honneur de porter ce maillot historique", a déclaré le nouveau joueur lors de sa présentation.
+
+Le président du club s'est félicité de cette recrue: "C'est un joueur de qualité qui va nous aider à atteindre nos objectifs cette saison."`,
+        summary: 'Le WAC officialise l\'arrivée d\'un nouveau renfort offensif pour la seconde partie de saison.',
+        category: 'transfer',
+        is_featured: 1,
+        is_published: 1
+      },
+      {
+        title: 'Ligue des Champions CAF: Le WAC qualifié pour les quarts !',
+        content: `Excellente nouvelle pour les supporters wydadis ! Le Wydad Athletic Club s'est qualifié pour les quarts de finale de la Ligue des Champions de la CAF.
+
+Après une phase de groupes maîtrisée avec 4 victoires et 2 nuls, les Rouge et Blanc terminent premiers de leur groupe avec 14 points.
+
+Le prochain adversaire sera connu après le tirage au sort prévu la semaine prochaine au siège de la CAF au Caire.
+
+L'objectif est clair: remporter une 4ème Ligue des Champions pour le club le plus titré du Maroc.`,
+        summary: 'Le WAC termine premier de son groupe et se qualifie pour les quarts de finale de la Ligue des Champions CAF.',
+        category: 'match',
+        is_featured: 1,
+        is_published: 1
+      },
+      {
+        title: 'Journée portes ouvertes au complexe Mohammed VI',
+        content: `Le Wydad Athletic Club organise une journée portes ouvertes au complexe Mohammed VI ce samedi.
+
+Au programme:
+- Visite du centre d'entraînement
+- Rencontre avec les joueurs de l'équipe première
+- Séance d'autographes
+- Animations pour les enfants
+- Stands de la boutique officielle avec promotions exclusives
+
+L'entrée est gratuite pour tous les membres et 50 DH pour le public.
+
+Une occasion unique de découvrir les coulisses du club et de rencontrer vos joueurs préférés !`,
+        summary: 'Journée portes ouvertes au complexe Mohammed VI avec rencontre des joueurs et animations.',
+        category: 'club',
+        is_featured: 0,
+        is_published: 1
+      },
+      {
+        title: 'Le centre de formation WAC produit un nouveau talent',
+        content: `Le centre de formation du Wydad continue de produire des talents. Un jeune joueur de 17 ans vient d'être promu en équipe première.
+
+Formé au club depuis l'âge de 10 ans, ce milieu de terrain créatif a impressionné lors des entraînements avec le groupe professionnel.
+
+"C'est le fruit d'un travail de formation de qualité. Notre académie est l'une des meilleures en Afrique", a souligné le directeur du centre de formation.
+
+Le joueur a signé son premier contrat professionnel de 4 ans avec le club de son cœur.`,
+        summary: 'Un jeune talent de 17 ans issu du centre de formation signe son premier contrat professionnel.',
+        category: 'youth',
+        is_featured: 0,
+        is_published: 1
+      },
+      {
+        title: 'Les Winners préparent un tifo spectaculaire',
+        content: `Les supporters du Wydad, les fameux Winners, préparent un tifo spectaculaire pour le prochain match à domicile.
+
+Sans révéler les détails, les responsables du groupe ultra ont annoncé que ce sera "le plus grand tifo de l'histoire du football marocain".
+
+Des semaines de préparation et des milliers d'heures de travail bénévole pour offrir un spectacle inoubliable au stade Mohammed V.
+
+Le message est clair: montrer au monde entier la passion des supporters wydadis.`,
+        summary: 'Les Winners annoncent un tifo historique pour le prochain match à domicile.',
+        category: 'fans',
+        is_featured: 0,
+        is_published: 1
+      },
+      {
+        title: 'Retour sur le titre de 1992: 30 ans déjà !',
+        content: `Il y a 30 ans, le Wydad Athletic Club remportait sa première Ligue des Champions africaine (anciennement Coupe d'Afrique des clubs champions).
+
+Une génération dorée menée par des légendes du club qui ont marqué l'histoire du football marocain et africain.
+
+Le club organise une cérémonie d'hommage aux héros de cette épopée historique lors du prochain match à domicile.
+
+Les anciens joueurs seront présents pour partager leurs souvenirs avec les supporters.`,
+        summary: 'Le WAC célèbre les 30 ans de son premier titre continental avec une cérémonie d\'hommage.',
+        category: 'history',
+        is_featured: 0,
+        is_published: 1
+      },
+      {
+        title: 'Nouvelle collection 2026 disponible en boutique',
+        content: `La nouvelle collection 2026 du Wydad Athletic Club est maintenant disponible dans toutes les boutiques officielles et en ligne.
+
+Au programme:
+- Nouveau maillot domicile avec design innovant
+- Maillot extérieur en édition limitée
+- Collection lifestyle complète
+- Accessoires exclusifs
+
+Profitez de 10% de réduction pour tout achat avant la fin du mois avec le code WYDAD2026.
+
+Portez fièrement les couleurs de votre club !`,
+        summary: 'La nouvelle collection 2026 est disponible avec 10% de réduction jusqu\'à la fin du mois.',
+        category: 'club',
+        is_featured: 1,
+        is_published: 1
+      }
+    ];
+
+    for (const news of newsItems) {
+      await run(
+        `INSERT INTO news (
+          title, content, summary, category, is_featured, is_published, published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [news.title, news.content, news.summary, news.category, news.is_featured, news.is_published]
+      );
+    }
+
+    console.log(`✅ ${newsItems.length} actualités WAC ajoutées`);
+
+  } catch (error) {
+    console.error('❌ Erreur seed news:', error);
+  }
+};
+
+// ===========================================
 // EXÉCUTER TOUS LES SEEDS
 // ===========================================
 const seedAll = async () => {
@@ -381,10 +535,11 @@ const seedAll = async () => {
   await seedPlayers();
   await seedMatches();
   await seedProducts();
+  await seedNews();
   
   console.log('===========================================');
   console.log('✅ Seed terminé');
   console.log('===========================================');
 };
 
-module.exports = { seedAdmin, seedPlayers, seedMatches, seedProducts, seedAll };
+module.exports = { seedAdmin, seedPlayers, seedMatches, seedProducts, seedNews, seedAll };
