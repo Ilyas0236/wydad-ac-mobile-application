@@ -31,7 +31,7 @@ app.use(cors({
 app.use(express.json());
 
 // Parser URL-encoded pour les formulaires
-app.use(express.urlencoded({ extended: true });
+app.use(express.urlencoded({ extended: true }));
 
 // ===========================================
 // ROUTE DE TEST / HEALTH CHECK
