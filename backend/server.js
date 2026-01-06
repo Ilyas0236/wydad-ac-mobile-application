@@ -10,6 +10,10 @@
 const express = require('express');
 const cors = require('cors');
 const { initDatabase } = require('./database');
+const { seedAll } = require('./seed');
+
+// Import des routes
+const adminRoutes = require('./routes/admin');
 
 // Initialisation de l'application Express
 const app = express();
@@ -58,6 +62,12 @@ app.get('/health', (req, res) => {
 });
 
 // ===========================================
+// ROUTES API
+// ===========================================
+
+app.use('/admin', adminRoutes);
+
+// ===========================================
 // GESTION DES ERREURS 404
 // ===========================================
 
@@ -86,7 +96,10 @@ app.use((err, req, res, next) => {
 
 // Initialiser la base de données puis démarrer le serveur
 initDatabase()
-  .then(() => {
+  .then(async () => {
+    // Initialiser les données par défaut (admin, etc.)
+    await seedAll();
+    
     app.listen(PORT, () => {
       console.log('===========================================');
       console.log('🔴⚪ WYDAD ATHLETIC CLUB - API SERVER 🔴⚪');
