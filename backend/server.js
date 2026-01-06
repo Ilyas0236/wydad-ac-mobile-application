@@ -15,6 +15,7 @@ const { seedAll } = require('./seed');
 // Import des routes
 const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
+const playersRoutes = require('./routes/players');
 
 // Initialisation de l'application Express
 const app = express();
@@ -68,6 +69,7 @@ app.get('/health', (req, res) => {
 
 app.use('/admin', adminRoutes);
 app.use('/auth', authRoutes);
+app.use('/players', playersRoutes);
 
 // ===========================================
 // GESTION DES ERREURS 404
