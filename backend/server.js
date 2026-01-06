@@ -17,6 +17,7 @@ const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const playersRoutes = require('./routes/players');
 const matchesRoutes = require('./routes/matches');
+const ticketsRoutes = require('./routes/tickets');
 
 // Initialisation de l'application Express
 const app = express();
@@ -72,6 +73,7 @@ app.use('/admin', adminRoutes);
 app.use('/auth', authRoutes);
 app.use('/players', playersRoutes);
 app.use('/matches', matchesRoutes);
+app.use('/tickets', ticketsRoutes);
 
 // ===========================================
 // GESTION DES ERREURS 404
