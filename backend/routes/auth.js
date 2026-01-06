@@ -12,6 +12,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { run, get } = require('../database');
+const { authUser } = require('../middleware');
 
 // Clé secrète JWT
 const JWT_SECRET = process.env.JWT_SECRET || 'wac_secret_key_2025_wydad_champions';
@@ -184,18 +185,10 @@ router.post('/login', async (req, res) => {
 });
 
 // ===========================================
-// GET /auth/profile - Profil utilisateur
+// GET /auth/profile - Profil utilisateur (protégé)
 // ===========================================
-router.get('/profile', async (req, res) => {
+router.get('/profile', authUser, async (req, res) => {
   try {
-    // Le middleware auth ajoutera req.user
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non autorisé - Token requis'
-      });
-    }
-
     const user = await get(
       'SELECT id, name, email, phone, avatar, created_at FROM users WHERE id = ?',
       [req.user.id]
@@ -225,15 +218,10 @@ router.get('/profile', async (req, res) => {
 // ===========================================
 // PUT /auth/profile - Modifier profil
 // ===========================================
-router.put('/profile', async (req, res) => {
+// PUT /auth/profile - Modifier profil (protégé)
+// ===========================================
+router.put('/profile', authUser, async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non autorisé'
-      });
-    }
-
     const { name, phone, avatar } = req.body;
 
     // Construire la requête de mise à jour
@@ -290,17 +278,10 @@ router.put('/profile', async (req, res) => {
 });
 
 // ===========================================
-// PUT /auth/password - Changer mot de passe
+// PUT /auth/password - Changer mot de passe (protégé)
 // ===========================================
-router.put('/password', async (req, res) => {
+router.put('/password', authUser, async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non autorisé'
-      });
-    }
-
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {

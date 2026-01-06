@@ -11,6 +11,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { run, get, all } = require('../database');
+const authAdmin = require('../middleware/authAdmin');
 
 // Clé secrète JWT (en production, utiliser une variable d'environnement)
 const JWT_SECRET = process.env.JWT_SECRET || 'wac_secret_key_2025_wydad_champions';
@@ -90,7 +91,7 @@ router.post('/login', async (req, res) => {
 // ===========================================
 // POST /admin/create - Créer un admin (protégé)
 // ===========================================
-router.post('/create', async (req, res) => {
+router.post('/create', authAdmin, async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
@@ -145,16 +146,8 @@ router.post('/create', async (req, res) => {
 // ===========================================
 // GET /admin/profile - Profil admin (protégé)
 // ===========================================
-router.get('/profile', async (req, res) => {
+router.get('/profile', authAdmin, async (req, res) => {
   try {
-    // Le middleware auth ajoutera req.admin
-    if (!req.admin) {
-      return res.status(401).json({
-        success: false,
-        message: 'Non autorisé'
-      });
-    }
-
     const admin = await get(
       'SELECT id, username, email, role, created_at FROM admins WHERE id = ?',
       [req.admin.id]
