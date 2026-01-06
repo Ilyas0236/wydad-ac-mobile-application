@@ -198,6 +198,178 @@ const seedMatches = async () => {
 };
 
 // ===========================================
+// CRÉER LES PRODUITS BOUTIQUE WAC
+// ===========================================
+const seedProducts = async () => {
+  try {
+    // Vérifier si des produits existent déjà
+    const existingProducts = await get('SELECT id FROM products LIMIT 1');
+    
+    if (existingProducts) {
+      console.log('ℹ️  Des produits existent déjà');
+      return;
+    }
+
+    // Produits boutique WAC
+    const products = [
+      // Maillots
+      {
+        name: 'Maillot Domicile WAC 2025/2026',
+        description: 'Maillot officiel domicile rouge et blanc du Wydad AC pour la saison 2025/2026. Tissu respirant haute performance.',
+        price: 450.00,
+        category: 'maillots',
+        stock: 100,
+        sizes: 'S,M,L,XL,XXL',
+        colors: 'Rouge/Blanc',
+        is_featured: 1
+      },
+      {
+        name: 'Maillot Extérieur WAC 2025/2026',
+        description: 'Maillot officiel extérieur noir du Wydad AC. Design moderne avec détails dorés.',
+        price: 450.00,
+        category: 'maillots',
+        stock: 80,
+        sizes: 'S,M,L,XL,XXL',
+        colors: 'Noir/Or',
+        is_featured: 1
+      },
+      {
+        name: 'Maillot Third WAC 2025/2026',
+        description: 'Troisième maillot officiel blanc du Wydad AC. Édition spéciale.',
+        price: 400.00,
+        category: 'maillots',
+        stock: 60,
+        sizes: 'S,M,L,XL',
+        colors: 'Blanc/Rouge',
+        is_featured: 0
+      },
+      // Vêtements
+      {
+        name: 'Polo WAC Premium',
+        description: 'Polo officiel du Wydad AC. Coton premium avec logo brodé.',
+        price: 280.00,
+        category: 'vetements',
+        stock: 50,
+        sizes: 'S,M,L,XL,XXL',
+        colors: 'Rouge,Blanc,Noir',
+        is_featured: 1
+      },
+      {
+        name: 'Survêtement Complet WAC',
+        description: 'Survêtement officiel d\'entraînement. Veste + Pantalon.',
+        price: 650.00,
+        category: 'vetements',
+        stock: 40,
+        sizes: 'S,M,L,XL',
+        colors: 'Rouge/Noir',
+        is_featured: 1
+      },
+      {
+        name: 'Sweat à Capuche WAC',
+        description: 'Hoodie confortable avec logo WAC brodé.',
+        price: 320.00,
+        category: 'vetements',
+        stock: 45,
+        sizes: 'S,M,L,XL,XXL',
+        colors: 'Rouge,Gris,Noir',
+        is_featured: 0
+      },
+      // Accessoires
+      {
+        name: 'Casquette WAC',
+        description: 'Casquette officielle avec logo WAC brodé. Ajustable.',
+        price: 120.00,
+        category: 'accessoires',
+        stock: 100,
+        sizes: 'Unique',
+        colors: 'Rouge,Blanc,Noir',
+        is_featured: 1
+      },
+      {
+        name: 'Bonnet WAC',
+        description: 'Bonnet chaud avec pompon aux couleurs du WAC.',
+        price: 90.00,
+        category: 'accessoires',
+        stock: 80,
+        sizes: 'Unique',
+        colors: 'Rouge/Blanc',
+        is_featured: 0
+      },
+      // Écharpes
+      {
+        name: 'Écharpe Officielle WAC',
+        description: 'Écharpe tissée aux couleurs du Wydad. "DIMA WYDAD"',
+        price: 80.00,
+        category: 'echarpes',
+        stock: 200,
+        sizes: 'Unique',
+        colors: 'Rouge/Blanc',
+        is_featured: 1
+      },
+      {
+        name: 'Drapeau WAC Grande Taille',
+        description: 'Drapeau officiel 150x90cm. Parfait pour le stade.',
+        price: 150.00,
+        category: 'echarpes',
+        stock: 100,
+        sizes: '150x90cm',
+        colors: 'Rouge/Blanc',
+        is_featured: 0
+      },
+      // Équipement
+      {
+        name: 'Ballon WAC Officiel',
+        description: 'Ballon de football officiel du Wydad AC. Taille 5.',
+        price: 180.00,
+        category: 'equipement',
+        stock: 50,
+        sizes: 'Taille 5',
+        colors: 'Rouge/Blanc',
+        is_featured: 1
+      },
+      {
+        name: 'Sac à Dos WAC',
+        description: 'Sac à dos sportif avec compartiment laptop. Logo WAC.',
+        price: 220.00,
+        category: 'equipement',
+        stock: 40,
+        sizes: 'Unique',
+        colors: 'Noir/Rouge',
+        is_featured: 0
+      },
+      // Enfants
+      {
+        name: 'Kit Enfant WAC 2025/2026',
+        description: 'Ensemble complet pour enfants: maillot + short + chaussettes.',
+        price: 380.00,
+        category: 'enfants',
+        stock: 60,
+        sizes: '4-6ans,6-8ans,8-10ans,10-12ans',
+        colors: 'Rouge/Blanc',
+        is_featured: 1
+      }
+    ];
+
+    for (const product of products) {
+      await run(
+        `INSERT INTO products (
+          name, description, price, category, stock, sizes, colors, is_featured
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          product.name, product.description, product.price, product.category,
+          product.stock, product.sizes, product.colors, product.is_featured
+        ]
+      );
+    }
+
+    console.log(`✅ ${products.length} produits WAC ajoutés`);
+
+  } catch (error) {
+    console.error('❌ Erreur seed produits:', error);
+  }
+};
+
+// ===========================================
 // EXÉCUTER TOUS LES SEEDS
 // ===========================================
 const seedAll = async () => {
@@ -208,10 +380,11 @@ const seedAll = async () => {
   await seedAdmin();
   await seedPlayers();
   await seedMatches();
+  await seedProducts();
   
   console.log('===========================================');
   console.log('✅ Seed terminé');
   console.log('===========================================');
 };
 
-module.exports = { seedAdmin, seedPlayers, seedMatches, seedAll };
+module.exports = { seedAdmin, seedPlayers, seedMatches, seedProducts, seedAll };
