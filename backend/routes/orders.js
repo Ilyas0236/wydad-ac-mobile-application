@@ -474,4 +474,57 @@ router.put('/admin/:id/status', authAdmin, async (req, res) => {
   }
 });
 
+// ===========================================
+// TÉLÉCHARGER UNE FACTURE EN PDF
+// GET /orders/:id/invoice
+// ===========================================
+const { generateInvoicePDF } = require('../utils/pdfGenerator');
+
+router.get('/:id/invoice', authUser, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.id;
+
+    // Récupérer la commande
+    const order = await get(
+      'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+      [orderId, userId]
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Récupérer les items
+    const items = await all(
+      'SELECT * FROM order_items WHERE order_id = ?',
+      [orderId]
+    );
+
+    // Récupérer les infos utilisateur
+    const user = await get(
+      'SELECT name, email, phone FROM users WHERE id = ?',
+      [userId]
+    );
+
+    // Générer le PDF
+    const pdfBuffer = await generateInvoicePDF(order, items, user);
+
+    // Envoyer le PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=facture-wac-${order.order_number}.pdf`);
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('Erreur génération facture PDF:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la génération de la facture'
+    });
+  }
+});
+
 module.exports = router;

@@ -485,4 +485,72 @@ router.get('/admin/all', authAdmin, async (req, res) => {
   }
 });
 
+// ===========================================
+// TÉLÉCHARGER UN TICKET EN PDF
+// GET /tickets/:id/pdf
+// ===========================================
+const { generateTicketPDF } = require('../utils/pdfGenerator');
+
+router.get('/:id/pdf', authUser, async (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    const userId = req.user.id;
+
+    // Récupérer le ticket avec les infos du match
+    const ticket = await get(`
+      SELECT t.*, 
+             m.home_team, m.away_team, m.match_date, m.stadium, m.competition,
+             u.name as user_name, u.email as user_email
+      FROM tickets t
+      JOIN matches m ON t.match_id = m.id
+      JOIN users u ON t.user_id = u.id
+      WHERE t.id = ? AND t.user_id = ?
+    `, [ticketId, userId]);
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket non trouvé'
+      });
+    }
+
+    if (ticket.status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket non payé - Impossible de générer le PDF'
+      });
+    }
+
+    // Construire les objets pour le générateur PDF
+    const matchData = {
+      id: ticket.match_id,
+      home_team: ticket.home_team,
+      away_team: ticket.away_team,
+      match_date: ticket.match_date,
+      stadium: ticket.stadium,
+      competition: ticket.competition
+    };
+
+    const userData = {
+      name: ticket.user_name,
+      email: ticket.user_email
+    };
+
+    // Générer le PDF
+    const pdfBuffer = await generateTicketPDF(ticket, matchData, userData);
+
+    // Envoyer le PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=ticket-wac-${ticket.qr_code}.pdf`);
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('Erreur génération PDF ticket:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la génération du PDF'
+    });
+  }
+});
+
 module.exports = router;
