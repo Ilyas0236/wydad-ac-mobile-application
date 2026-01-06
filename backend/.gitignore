@@ -1,0 +1,34 @@
+# Dépendances
+node_modules/
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.production
+
+# Base de données SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Fichiers temporaires
+tmp/
+temp/
+
+# PDFs générés
+pdfs/

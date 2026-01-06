@@ -1,0 +1,25 @@
+{
+  "name": "wac-backend",
+  "version": "1.0.0",
+  "description": "Backend API pour l'application mobile Wydad Athletic Club",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["wac", "wydad", "football", "api"],
+  "author": "WAC Dev Team",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "sqlite3": "^5.1.6",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "pdfkit": "^0.13.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
