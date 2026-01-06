@@ -524,6 +524,169 @@ Portez fièrement les couleurs de votre club !`,
 };
 
 // ===========================================
+// CRÉER LES BOUTIQUES WAC
+// ===========================================
+const seedStores = async () => {
+  try {
+    // Vérifier si des boutiques existent déjà
+    const existingStores = await get('SELECT id FROM stores LIMIT 1');
+    
+    if (existingStores) {
+      console.log('ℹ️  Des boutiques existent déjà');
+      return;
+    }
+
+    // Boutiques WAC au Maroc
+    const stores = [
+      // Casablanca
+      {
+        name: 'Boutique Officielle WAC - Stade Mohammed V',
+        address: 'Stade Mohammed V, Boulevard Zerktouni',
+        city: 'Casablanca',
+        phone: '+212 522 123 456',
+        email: 'stade@wac.ma',
+        latitude: 33.5803,
+        longitude: -7.6326,
+        type: 'stadium',
+        opening_hours: 'Lun-Sam: 10h-19h, Jours de match: 10h-22h',
+        description: 'Boutique principale située à l\'entrée du stade Mohammed V. Large sélection de produits officiels.'
+      },
+      {
+        name: 'WAC Store - Morocco Mall',
+        address: 'Morocco Mall, Corniche Ain Diab',
+        city: 'Casablanca',
+        phone: '+212 522 654 321',
+        email: 'moroccomall@wac.ma',
+        latitude: 33.5667,
+        longitude: -7.6667,
+        type: 'official',
+        opening_hours: 'Tous les jours: 10h-22h',
+        description: 'Boutique moderne dans le plus grand mall d\'Afrique. Personnalisation de maillots disponible.'
+      },
+      {
+        name: 'WAC Store - Maarif',
+        address: '125 Rue Zerktouni, Maarif',
+        city: 'Casablanca',
+        phone: '+212 522 987 654',
+        email: 'maarif@wac.ma',
+        latitude: 33.5850,
+        longitude: -7.6350,
+        type: 'official',
+        opening_hours: 'Lun-Sam: 9h30-20h, Dim: 10h-18h',
+        description: 'Boutique de quartier au cœur de Maarif. Ambiance conviviale et conseils personnalisés.'
+      },
+      {
+        name: 'WAC Store - Anfa Place',
+        address: 'Anfa Place Living Resort, Boulevard Anfa',
+        city: 'Casablanca',
+        phone: '+212 522 111 222',
+        email: 'anfaplace@wac.ma',
+        latitude: 33.5922,
+        longitude: -7.6486,
+        type: 'official',
+        opening_hours: 'Tous les jours: 10h-21h',
+        description: 'Nouvelle boutique premium avec espace VIP pour les membres.'
+      },
+      // Rabat
+      {
+        name: 'WAC Store - Rabat Agdal',
+        address: 'Avenue Fal Ould Oumeir, Agdal',
+        city: 'Rabat',
+        phone: '+212 537 123 456',
+        email: 'rabat@wac.ma',
+        latitude: 33.9716,
+        longitude: -6.8498,
+        type: 'official',
+        opening_hours: 'Lun-Sam: 10h-19h30',
+        description: 'Boutique officielle WAC dans la capitale. Tous les produits de la collection.'
+      },
+      {
+        name: 'WAC Store - Mega Mall Rabat',
+        address: 'Mega Mall, Route de Zaers',
+        city: 'Rabat',
+        phone: '+212 537 654 321',
+        email: 'megamall@wac.ma',
+        latitude: 33.9625,
+        longitude: -6.8861,
+        type: 'official',
+        opening_hours: 'Tous les jours: 10h-22h',
+        description: 'Grande surface WAC avec espace enfants et corner personnalisation.'
+      },
+      // Marrakech
+      {
+        name: 'WAC Store - Marrakech Plaza',
+        address: 'Marrakech Plaza, Avenue Mohammed VI',
+        city: 'Marrakech',
+        phone: '+212 524 123 456',
+        email: 'marrakech@wac.ma',
+        latitude: 31.6295,
+        longitude: -7.9811,
+        type: 'official',
+        opening_hours: 'Tous les jours: 10h-22h',
+        description: 'Boutique WAC dans la ville ocre. Point de rencontre des supporters du sud.'
+      },
+      // Tanger
+      {
+        name: 'WAC Store - Tanger City Mall',
+        address: 'Tanger City Mall, Route de Rabat',
+        city: 'Tanger',
+        phone: '+212 539 123 456',
+        email: 'tanger@wac.ma',
+        latitude: 35.7595,
+        longitude: -5.8340,
+        type: 'official',
+        opening_hours: 'Tous les jours: 10h-22h',
+        description: 'Boutique officielle WAC dans le nord du Maroc.'
+      },
+      // Fès
+      {
+        name: 'Sport Zone Fès - Revendeur WAC',
+        address: 'Borj Fez Mall',
+        city: 'Fès',
+        phone: '+212 535 123 456',
+        email: 'fes@wac.ma',
+        latitude: 34.0181,
+        longitude: -5.0078,
+        type: 'partner',
+        opening_hours: 'Lun-Sam: 10h-20h',
+        description: 'Revendeur agréé WAC. Sélection des maillots et accessoires principaux.'
+      },
+      // Agadir
+      {
+        name: 'WAC Corner - Agadir',
+        address: 'Souk El Had, Agadir',
+        city: 'Agadir',
+        phone: '+212 528 123 456',
+        email: 'agadir@wac.ma',
+        latitude: 30.4278,
+        longitude: -9.5981,
+        type: 'partner',
+        opening_hours: 'Lun-Sam: 9h-19h',
+        description: 'Point de vente partenaire dans la région du Souss.'
+      }
+    ];
+
+    for (const store of stores) {
+      await run(
+        `INSERT INTO stores (
+          name, address, city, phone, email,
+          latitude, longitude, type, opening_hours, description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          store.name, store.address, store.city, store.phone, store.email,
+          store.latitude, store.longitude, store.type, store.opening_hours, store.description
+        ]
+      );
+    }
+
+    console.log(`✅ ${stores.length} boutiques WAC ajoutées`);
+
+  } catch (error) {
+    console.error('❌ Erreur seed stores:', error);
+  }
+};
+
+// ===========================================
 // EXÉCUTER TOUS LES SEEDS
 // ===========================================
 const seedAll = async () => {
@@ -536,10 +699,11 @@ const seedAll = async () => {
   await seedMatches();
   await seedProducts();
   await seedNews();
+  await seedStores();
   
   console.log('===========================================');
   console.log('✅ Seed terminé');
   console.log('===========================================');
 };
 
-module.exports = { seedAdmin, seedPlayers, seedMatches, seedProducts, seedNews, seedAll };
+module.exports = { seedAdmin, seedPlayers, seedMatches, seedProducts, seedNews, seedStores, seedAll };

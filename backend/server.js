@@ -21,6 +21,7 @@ const ticketsRoutes = require('./routes/tickets');
 const productsRoutes = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
 const newsRoutes = require('./routes/news');
+const storesRoutes = require('./routes/stores');
 
 // Initialisation de l'application Express
 const app = express();
@@ -80,6 +81,7 @@ app.use('/tickets', ticketsRoutes);
 app.use('/products', productsRoutes);
 app.use('/orders', ordersRoutes);
 app.use('/news', newsRoutes);
+app.use('/stores', storesRoutes);
 
 // ===========================================
 // GESTION DES ERREURS 404
