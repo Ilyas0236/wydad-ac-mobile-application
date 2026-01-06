@@ -31,15 +31,18 @@ Application mobile complète permettant aux supporters du WAC de :
 | qrcode | 1.5 | Génération QR codes |
 | cors | 2.8 | Cross-Origin Resource Sharing |
 
-### Frontend (À venir)
+### Frontend (Complet ✅)
 | Technologie | Version | Description |
 |-------------|---------|-------------|
-| React Native | 0.73+ | Framework mobile cross-platform |
-| Expo | 50+ | Plateforme de développement |
+| React Native | 0.76+ | Framework mobile cross-platform |
+| Expo | 54+ | Plateforme de développement |
 | React Navigation | 6.x | Navigation Stack & Tabs |
 | Axios | 1.x | Client HTTP |
-| AsyncStorage | 1.x | Stockage local |
+| AsyncStorage | 2.x | Stockage local persistant |
 | react-native-maps | 1.x | Cartes Google Maps |
+| Expo Linear Gradient | 14.x | Dégradés visuels |
+| React Native Gesture Handler | 2.x | Gestes tactiles |
+| React Native Reanimated | 3.x | Animations fluides |
 
 ---
 
@@ -71,12 +74,32 @@ wydadapplication/
 │       └── pdfGenerator.js    # Génération PDF
 │
 ├── src/                       # Frontend React Native
-│   ├── screens/
-│   ├── components/
-│   ├── hooks/
 │   ├── context/
+│   │   ├── AuthContext.js     # Gestion authentification
+│   │   └── CartContext.js     # Gestion panier
+│   ├── navigation/
+│   │   └── AppNavigator.js    # Navigation Tab + Stack
+│   ├── screens/
+│   │   ├── auth/
+│   │   │   ├── LoginScreen.js
+│   │   │   └── RegisterScreen.js
+│   │   ├── HomeScreen.js      # Accueil + actualités
+│   │   ├── PlayersScreen.js   # Liste joueurs
+│   │   ├── PlayerDetailScreen.js
+│   │   ├── MatchesScreen.js   # Calendrier matchs
+│   │   ├── TicketsScreen.js   # Achat billets
+│   │   ├── MyTicketsScreen.js # Mes billets
+│   │   ├── ShopScreen.js      # Boutique produits
+│   │   ├── ProductDetailScreen.js
+│   │   ├── CartScreen.js      # Panier
+│   │   ├── MyOrdersScreen.js  # Historique commandes
+│   │   ├── StoresScreen.js    # Carte magasins
+│   │   ├── ProfileScreen.js   # Mon profil
+│   │   └── NewsDetailScreen.js
 │   ├── services/
-│   └── navigation/
+│   │   └── api.js             # Service API Axios
+│   └── theme/
+│       └── colors.js          # Design system WAC
 │
 └── assets/                    # Ressources statiques
 ```
@@ -217,6 +240,25 @@ npm run dev
 ```
 
 Le serveur démarre sur `http://localhost:3000`
+
+### Frontend (React Native / Expo)
+
+```bash
+# À la racine du projet
+cd wydadapplication
+
+# Installer les dépendances
+npm install
+
+# Lancer l'application Expo
+npx expo start
+
+# Options de lancement:
+# - Appuyer sur 'a' pour Android
+# - Appuyer sur 'i' pour iOS (Mac uniquement)
+# - Appuyer sur 'w' pour Web
+# - Scanner le QR code avec Expo Go (mobile)
+```
 
 ### Compte Admin par défaut
 ```
