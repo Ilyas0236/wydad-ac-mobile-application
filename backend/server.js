@@ -9,6 +9,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const { initDatabase } = require('./database');
 
 // Initialisation de l'application Express
 const app = express();
@@ -83,13 +84,21 @@ app.use((err, req, res, next) => {
 // DÉMARRAGE DU SERVEUR
 // ===========================================
 
-app.listen(PORT, () => {
-  console.log('===========================================');
-  console.log('🔴⚪ WYDAD ATHLETIC CLUB - API SERVER 🔴⚪');
-  console.log('===========================================');
-  console.log(`✅ Serveur démarré sur le port ${PORT}`);
-  console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log('===========================================');
-});
+// Initialiser la base de données puis démarrer le serveur
+initDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log('===========================================');
+      console.log('🔴⚪ WYDAD ATHLETIC CLUB - API SERVER 🔴⚪');
+      console.log('===========================================');
+      console.log(`✅ Serveur démarré sur le port ${PORT}`);
+      console.log(`📍 URL: http://localhost:${PORT}`);
+      console.log('===========================================');
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Erreur initialisation DB:', err);
+    process.exit(1);
+  });
 
 module.exports = app;
