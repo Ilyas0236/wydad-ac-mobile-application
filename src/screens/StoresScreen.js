@@ -12,8 +12,10 @@ import {
   RefreshControl,
   Linking,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { storesAPI } from '../services/api';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
 
@@ -23,6 +25,15 @@ const StoresScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
   const [selectedStore, setSelectedStore] = useState(null);
+  const mapRef = useRef(null);
+
+  // Région par défaut : Casablanca, Maroc
+  const [region, setRegion] = useState({
+    latitude: 33.5731,
+    longitude: -7.5898,
+    latitudeDelta: 0.5,
+    longitudeDelta: 0.5,
+  });
 
   useEffect(() => {
     loadStores();
@@ -135,32 +146,110 @@ const StoresScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  // Simple Map View (placeholder - would use react-native-maps)
+  // Fonction pour centrer sur un magasin
+  const focusOnStore = (store) => {
+    if (mapRef.current && store.latitude && store.longitude) {
+      mapRef.current.animateToRegion({
+        latitude: parseFloat(store.latitude),
+        longitude: parseFloat(store.longitude),
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 500);
+      setSelectedStore(store);
+    }
+  };
+
+  // Vue Carte avec Google Maps
   const renderMapView = () => (
     <View style={styles.mapContainer}>
-      <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapIcon}>🗺️</Text>
-        <Text style={styles.mapText}>Carte des magasins</Text>
-        <Text style={styles.mapSubtext}>
-          {stores.length} magasins au Maroc
-        </Text>
-        
-        {/* Cities Summary */}
-        <View style={styles.citiesContainer}>
-          {[...new Set(stores.map(s => s.city))].map((city) => (
-            <View key={city} style={styles.cityBadge}>
-              <Text style={styles.cityText}>{city}</Text>
-              <Text style={styles.cityCount}>
-                {stores.filter(s => s.city === city).length}
-              </Text>
-            </View>
-          ))}
-        </View>
-        
-        <Text style={styles.mapNote}>
-          Utilisez la vue liste pour les détails et itinéraires
-        </Text>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={region}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+        showsCompass={true}
+        toolbarEnabled={true}
+      >
+        {stores.map((store) => (
+          store.latitude && store.longitude && (
+            <Marker
+              key={store.id}
+              coordinate={{
+                latitude: parseFloat(store.latitude),
+                longitude: parseFloat(store.longitude),
+              }}
+              title={store.name}
+              description={store.address}
+              pinColor={store.type === 'official' ? COLORS.primary : COLORS.secondary}
+              onPress={() => setSelectedStore(store)}
+            >
+              <Callout onPress={() => openMaps(store)}>
+                <View style={styles.calloutContainer}>
+                  <Text style={styles.calloutTitle}>{store.name}</Text>
+                  <Text style={styles.calloutAddress}>{store.address}</Text>
+                  <Text style={styles.calloutCity}>{store.city}</Text>
+                  <Text style={styles.calloutType}>
+                    {store.type === 'official' ? 'Magasin Officiel' : 'Revendeur Agréé'}
+                  </Text>
+                  <Text style={styles.calloutAction}>Appuyer pour itinéraire</Text>
+                </View>
+              </Callout>
+            </Marker>
+          )
+        ))}
+      </MapView>
+
+      {/* Liste rapide des magasins en bas */}
+      <View style={styles.mapStoreList}>
+        <FlatList
+          horizontal
+          data={stores}
+          keyExtractor={(item) => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.mapStoreCard,
+                selectedStore?.id === item.id && styles.mapStoreCardSelected
+              ]}
+              onPress={() => focusOnStore(item)}
+            >
+              <Text style={styles.mapStoreName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.mapStoreCity}>{item.city}</Text>
+              <View style={styles.mapStoreBadge}>
+                <Text style={styles.mapStoreBadgeText}>
+                  {item.type === 'official' ? 'Officiel' : 'Revendeur'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
       </View>
+
+      {/* Bouton pour afficher tous les magasins */}
+      <TouchableOpacity
+        style={styles.fitAllButton}
+        onPress={() => {
+          if (mapRef.current && stores.length > 0) {
+            const coordinates = stores
+              .filter(s => s.latitude && s.longitude)
+              .map(s => ({
+                latitude: parseFloat(s.latitude),
+                longitude: parseFloat(s.longitude),
+              }));
+            if (coordinates.length > 0) {
+              mapRef.current.fitToCoordinates(coordinates, {
+                edgePadding: { top: 50, right: 50, bottom: 150, left: 50 },
+                animated: true,
+              });
+            }
+          }
+        }}
+      >
+        <Text style={styles.fitAllButtonText}>Voir tous</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -382,7 +471,104 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    padding: SIZES.screenPadding,
+  },
+  map: {
+    flex: 1,
+    width: Dimensions.get('window').width,
+  },
+  calloutContainer: {
+    padding: 10,
+    minWidth: 200,
+  },
+  calloutTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  calloutAddress: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  calloutCity: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginBottom: 4,
+  },
+  calloutType: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  calloutAction: {
+    fontSize: 10,
+    color: COLORS.success,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  mapStoreList: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    ...SHADOWS.medium,
+  },
+  mapStoreCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: SIZES.radiusMd,
+    padding: 12,
+    marginHorizontal: 5,
+    minWidth: 140,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...SHADOWS.small,
+  },
+  mapStoreCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  mapStoreName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  mapStoreCity: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  mapStoreBadge: {
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  mapStoreBadgeText: {
+    fontSize: 9,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  fitAllButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    ...SHADOWS.small,
+  },
+  fitAllButtonText: {
+    color: COLORS.textWhite,
+    fontSize: 12,
+    fontWeight: '600',
   },
   mapPlaceholder: {
     flex: 1,

@@ -173,13 +173,16 @@ router.post('/', authAdmin, async (req, res) => {
       });
     }
 
-    const validCategories = ['match', 'transfer', 'team', 'club', 'youth', 'fans', 'history'];
+    const validCategories = ['general', 'match', 'transfer', 'transfert', 'team', 'club', 'youth', 'fans', 'history'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
         message: 'Catégorie invalide'
       });
     }
+
+    // Normaliser la catégorie
+    const normalizedCategory = category === 'transfert' ? 'transfer' : category;
 
     const result = await run(
       `INSERT INTO news (
@@ -190,7 +193,7 @@ router.post('/', authAdmin, async (req, res) => {
         title, 
         content, 
         summary || content.substring(0, 200) + '...', 
-        category, 
+        normalizedCategory, 
         image || null,
         is_featured ? 1 : 0,
         is_published !== false ? 1 : 0,
@@ -202,7 +205,7 @@ router.post('/', authAdmin, async (req, res) => {
       success: true,
       message: 'Actualité créée avec succès',
       data: {
-        id: result.lastID,
+        id: result.id,
         title,
         category
       }

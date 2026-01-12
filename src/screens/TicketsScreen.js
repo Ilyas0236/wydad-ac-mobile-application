@@ -2,7 +2,7 @@
 // WYDAD AC - TICKETS SCREEN
 // ===========================================
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,31 +12,105 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { matchesAPI, ticketsAPI } from '../services/api';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
 
-const TICKET_CATEGORIES = {
-  tribune: { label: 'Tribune', price: 50, icon: '🎫' },
-  gradins: { label: 'Gradins', price: 100, icon: '🏟️' },
-  vip: { label: 'VIP', price: 300, icon: '⭐' },
-};
+// Sections du stade (correspondant au backend)
+const STADIUM_SECTIONS = [
+  { key: 'virage_nord', label: 'Virage Nord (Winners)', price_multiplier: 1.0, icon: '🔴' },
+  { key: 'virage_sud', label: 'Virage Sud', price_multiplier: 1.0, icon: '⚪' },
+  { key: 'pelouse', label: 'Pelouse', price_multiplier: 1.5, icon: '⛳' },
+  { key: 'tribune', label: 'Tribune Latérale', price_multiplier: 2.5, icon: '🎫' },
+  { key: 'tribune_honneur', label: 'Tribune d\'Honneur', price_multiplier: 5.0, icon: '🏟️' },
+];
 
 const TicketsScreen = ({ navigation }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [matches, setMatches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [purchasing, setPurchasing] = useState(false);
 
+  // Modal choix méthode de paiement
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+
+  // Modal de paiement carte
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingTicket, setPendingTicket] = useState(null);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCVV, setCardCVV] = useState('');
+  const [paying, setPaying] = useState(false);
+
+  // Sections dynamiques
+  const [dynamicSections, setDynamicSections] = useState([]);
+  const [loadingSections, setLoadingSections] = useState(false);
+
+  // Initial load
   useEffect(() => {
     loadUpcomingMatches();
   }, []);
+
+  // Charger les sections quand un match est sélectionné
+  useEffect(() => {
+    if (selectedMatch) {
+      loadMatchSections(selectedMatch.id);
+    } else {
+      setDynamicSections([]);
+    }
+  }, [selectedMatch]);
+
+  const loadMatchSections = async (matchId) => {
+    setLoadingSections(true);
+    try {
+      const response = await matchesAPI.getSections(matchId);
+      if (response.success && response.data.length > 0) {
+        // Mapper les données du backend avec les labels/icones du frontend
+        const mergedSections = STADIUM_SECTIONS.map(staticSection => {
+          const dynamic = response.data.find(d => d.category_key === staticSection.key);
+          if (dynamic) {
+            return {
+              ...staticSection,
+              price: dynamic.price, // Utiliser le prix du backend
+              capacity: dynamic.capacity,
+              // available: dynamic.capacity - dynamic.sold // Si on gérait le sold par section
+            };
+          }
+          return {
+            ...staticSection,
+            price: Math.round(selectedMatch.ticket_price * staticSection.price_multiplier), // Fallback
+          };
+        });
+        setDynamicSections(mergedSections);
+      } else {
+        // Fallback si pas de config backend
+        const fallbackSections = STADIUM_SECTIONS.map(s => ({
+          ...s,
+          price: Math.round(selectedMatch.ticket_price * s.price_multiplier)
+        }));
+        setDynamicSections(fallbackSections);
+      }
+    } catch (error) {
+      console.error('Erreur chargement sections:', error);
+      // Fallback en cas d'erreur
+      const fallbackSections = STADIUM_SECTIONS.map(s => ({
+        ...s,
+        price: Math.round(selectedMatch.ticket_price * s.price_multiplier)
+      }));
+      setDynamicSections(fallbackSections);
+    } finally {
+      setLoadingSections(false);
+    }
+  };
 
   const loadUpcomingMatches = async () => {
     try {
@@ -54,15 +128,16 @@ const TicketsScreen = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadUpcomingMatches();
+    if (selectedMatch) loadMatchSections(selectedMatch.id);
     setRefreshing(false);
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
-      weekday: 'long',
+      weekday: 'short',
       day: 'numeric',
-      month: 'long',
+      month: 'short',
     });
   };
 
@@ -74,7 +149,13 @@ const TicketsScreen = ({ navigation }) => {
     });
   };
 
-  const handlePurchase = async () => {
+  const calculatePrice = () => {
+    if (!selectedMatch || !selectedSection) return 0;
+    const section = dynamicSections.find(s => s.key === selectedSection);
+    return section ? section.price * quantity : 0;
+  };
+
+  const handleReserve = async () => {
     if (!user) {
       Alert.alert('Connexion requise', 'Veuillez vous connecter pour acheter des billets', [
         { text: 'Annuler', style: 'cancel' },
@@ -83,8 +164,8 @@ const TicketsScreen = ({ navigation }) => {
       return;
     }
 
-    if (!selectedMatch || !selectedCategory) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un match et une catégorie');
+    if (!selectedMatch || !selectedSection) {
+      Alert.alert('Erreur', 'Veuillez sélectionner un match et une section');
       return;
     }
 
@@ -92,67 +173,194 @@ const TicketsScreen = ({ navigation }) => {
     try {
       const response = await ticketsAPI.purchase({
         match_id: selectedMatch.id,
-        category: selectedCategory,
+        seat_section: selectedSection,
         quantity: quantity,
       });
 
       if (response.success) {
-        Alert.alert(
-          '✅ Achat réussi!',
-          `Vos ${quantity} billet(s) ont été achetés.\nTotal: ${response.data.total_price} MAD`,
-          [
-            {
-              text: 'Voir mes billets',
-              onPress: () => navigation.navigate('Profile', { screen: 'MyTickets' }),
-            },
-            { text: 'OK' },
-          ]
-        );
-        setSelectedMatch(null);
-        setSelectedCategory(null);
-        setQuantity(1);
+        // Ticket réservé, afficher choix de méthode de paiement
+        setPendingTicket(response.data);
+        setShowPaymentMethodModal(true);
       } else {
-        Alert.alert('Erreur', response.message || 'Erreur lors de l\'achat');
+        Alert.alert('Erreur', response.message || 'Erreur lors de la réservation');
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de finaliser l\'achat');
+      Alert.alert('Erreur', error.message || 'Impossible de réserver');
     } finally {
       setPurchasing(false);
     }
   };
 
-  const renderMatch = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.matchCard, selectedMatch?.id === item.id && styles.matchCardSelected]}
-      onPress={() => setSelectedMatch(item)}
-    >
-      <View style={styles.matchHeader}>
-        <Text style={styles.competitionText}>{item.competition}</Text>
-        <Text style={styles.ticketsLeft}>
-          {item.tickets_available} places
-        </Text>
-      </View>
+  // Paiement par carte
+  const handleCardPayment = async () => {
+    if (!cardNumber || cardNumber.length < 16) {
+      Alert.alert('Erreur', 'Veuillez entrer un numéro de carte valide (16 chiffres)');
+      return;
+    }
+    if (!cardHolder) {
+      Alert.alert('Erreur', 'Veuillez entrer le nom du titulaire');
+      return;
+    }
+    if (!cardExpiry || cardExpiry.length < 4) {
+      Alert.alert('Erreur', 'Veuillez entrer une date d\'expiration valide (MM/AA)');
+      return;
+    }
+    if (!cardCVV || cardCVV.length < 3) {
+      Alert.alert('Erreur', 'Veuillez entrer un CVV valide (3 chiffres)');
+      return;
+    }
 
-      <View style={styles.matchTeams}>
-        <Text style={styles.teamName}>{item.home_team}</Text>
-        <Text style={styles.vsText}>VS</Text>
-        <Text style={styles.teamName}>{item.away_team}</Text>
-      </View>
+    setPaying(true);
+    // Simuler un délai de traitement
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
-      <View style={styles.matchInfo}>
-        <Text style={styles.dateText}>📅 {formatDate(item.date)}</Text>
-        <Text style={styles.timeText}>🕐 {formatTime(item.date)}</Text>
-      </View>
+    try {
+      const response = await ticketsAPI.pay(pendingTicket.id, {
+        payment_method: 'card',
+        card_number: cardNumber,
+        card_holder: cardHolder,
+        card_expiry: cardExpiry,
+        card_cvv: cardCVV,
+      });
 
-      <Text style={styles.stadiumText}>📍 {item.stadium}</Text>
+      if (response.success) {
+        setShowPaymentModal(false);
+        Alert.alert(
+          '✅ Paiement réussi!',
+          `Vos ${quantity} billet(s) ont été payés.\nRéférence: #${pendingTicket.id.toString().padStart(6, '0')}\n\n🎟️ Présentez votre QR Code à l'entrée du stade.`,
+          [
+            {
+              text: 'Voir mes billets',
+              onPress: () => navigation.navigate('MyTickets'),
+            },
+            { text: 'OK' },
+          ]
+        );
+        resetPaymentForm();
+        loadUpcomingMatches();
+      } else {
+        Alert.alert('Erreur', response.message || 'Erreur de paiement');
+      }
+    } catch (error) {
+      Alert.alert('Erreur', error.message || 'Paiement échoué');
+    } finally {
+      setPaying(false);
+    }
+  };
 
-      {selectedMatch?.id === item.id && (
-        <View style={styles.selectedBadge}>
-          <Text style={styles.selectedText}>✓ Sélectionné</Text>
+  // Paiement mobile money (simulation)
+  const handleMobilePayment = async () => {
+    setPaying(true);
+    // Simuler un délai de traitement
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+      const response = await ticketsAPI.pay(pendingTicket.id, {
+        payment_method: 'mobile_money',
+      });
+
+      if (response.success) {
+        setShowPaymentMethodModal(false);
+        Alert.alert(
+          '✅ Paiement réussi!',
+          `Vos ${quantity} billet(s) ont été payés par Mobile Money.\nRéférence: #${pendingTicket.id.toString().padStart(6, '0')}\n\n🎟️ Présentez votre QR Code à l'entrée du stade.`,
+          [
+            {
+              text: 'Voir mes billets',
+              onPress: () => navigation.navigate('MyTickets'),
+            },
+            { text: 'OK' },
+          ]
+        );
+        resetPaymentForm();
+        loadUpcomingMatches();
+      } else {
+        Alert.alert('Erreur', response.message || 'Erreur de paiement');
+      }
+    } catch (error) {
+      Alert.alert('Erreur', error.message || 'Paiement échoué');
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // Reset du formulaire
+  const resetPaymentForm = () => {
+    setSelectedMatch(null);
+    setSelectedSection(null);
+    setQuantity(1);
+    setPendingTicket(null);
+    setCardNumber('');
+    setCardHolder('');
+    setCardExpiry('');
+    setCardCVV('');
+  };
+
+  // Annuler la réservation
+  const handleCancelReservation = async () => {
+    if (pendingTicket) {
+      try {
+        await ticketsAPI.cancel(pendingTicket.id);
+      } catch (e) {
+        console.log('Erreur annulation:', e);
+      }
+    }
+    setShowPaymentModal(false);
+    setShowPaymentMethodModal(false);
+    resetPaymentForm();
+    loadUpcomingMatches();
+  };
+
+  // Formater la date d'expiration
+  const formatExpiry = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    if (cleaned.length >= 2) {
+      return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4);
+    }
+    return cleaned;
+  };
+
+  const renderMatch = ({ item }) => {
+    const homeTeam = item.is_home ? 'WAC' : item.opponent;
+    const awayTeam = item.is_home ? item.opponent : 'WAC';
+
+    return (
+      <TouchableOpacity
+        style={[styles.matchCard, selectedMatch?.id === item.id && styles.matchCardSelected]}
+        onPress={() => {
+          setSelectedMatch(item);
+          setSelectedSection(null);
+        }}
+      >
+        <View style={styles.matchHeader}>
+          <Text style={styles.competitionText}>{item.competition}</Text>
+          <Text style={[styles.ticketsLeft, item.available_seats < 100 && { color: COLORS.warning }]}>
+            {item.available_seats} places
+          </Text>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        <View style={styles.matchTeams}>
+          <Text style={styles.teamName}>{homeTeam}</Text>
+          <Text style={styles.vsText}>VS</Text>
+          <Text style={styles.teamName}>{awayTeam}</Text>
+        </View>
+
+        <View style={styles.matchInfo}>
+          <Text style={styles.dateText}>📅 {formatDate(item.match_date)}</Text>
+          <Text style={styles.timeText}>🕐 {formatTime(item.match_date)}</Text>
+        </View>
+
+        <Text style={styles.stadiumText}>📍 {item.venue}</Text>
+        <Text style={styles.basePriceText}>À partir de {item.ticket_price} MAD</Text>
+
+        {selectedMatch?.id === item.id && (
+          <View style={styles.selectedBadge}>
+            <Text style={styles.selectedText}>✓ Sélectionné</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -161,8 +369,8 @@ const TicketsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Billetterie</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile', { screen: 'MyTickets' })}>
+        <Text style={styles.headerTitle}>🎟️ Billetterie</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('MyTickets')}>
           <Text style={styles.myTicketsBtn}>Mes billets</Text>
         </TouchableOpacity>
       </View>
@@ -179,41 +387,49 @@ const TicketsScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Matchs à venir</Text>
         }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Aucun match à venir</Text>
+          isLoading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          ) : (
+            <Text style={styles.emptyText}>Aucun match à venir</Text>
+          )
         }
         ListFooterComponent={
           selectedMatch && (
             <View style={styles.purchaseSection}>
-              <Text style={styles.sectionTitle}>Sélectionnez votre place</Text>
+              <Text style={styles.sectionTitle}>Choisir une tribune</Text>
 
-              {/* Categories */}
-              <View style={styles.categories}>
-                {Object.entries(TICKET_CATEGORIES).map(([key, value]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.categoryCard,
-                      selectedCategory === key && styles.categoryCardSelected,
-                    ]}
-                    onPress={() => setSelectedCategory(key)}
-                  >
-                    <Text style={styles.categoryIcon}>{value.icon}</Text>
-                    <Text style={styles.categoryLabel}>{value.label}</Text>
-                    <Text style={styles.categoryPrice}>{value.price} MAD</Text>
-                    {selectedCategory === key && (
-                      <View style={styles.checkMark}>
-                        <Text style={styles.checkMarkText}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
+              {/* Sections du stade */}
+              <View style={styles.sectionsContainer}>
+                {loadingSections ? (
+                  <ActivityIndicator color={COLORS.primary} style={{ margin: 20, width: '100%' }} />
+                ) : (
+                  dynamicSections.map((section) => (
+                    <TouchableOpacity
+                      key={section.key}
+                      style={[
+                        styles.sectionCard,
+                        selectedSection === section.key && styles.sectionCardSelected,
+                      ]}
+                      onPress={() => setSelectedSection(section.key)}
+                    >
+                      <Text style={styles.sectionIcon}>{section.icon}</Text>
+                      <Text style={styles.sectionLabel}>{section.label}</Text>
+                      <Text style={styles.sectionPrice}>{section.price} MAD</Text>
+                      {selectedSection === section.key && (
+                        <View style={styles.checkMark}>
+                          <Text style={styles.checkMarkText}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
               </View>
 
               {/* Quantity */}
-              {selectedCategory && (
+              {selectedSection && (
                 <>
                   <View style={styles.quantitySection}>
-                    <Text style={styles.quantityLabel}>Quantité:</Text>
+                    <Text style={styles.quantityLabel}>Nombre de billets:</Text>
                     <View style={styles.quantityControls}>
                       <TouchableOpacity
                         style={styles.qtyBtn}
@@ -231,23 +447,21 @@ const TicketsScreen = ({ navigation }) => {
                     </View>
                   </View>
 
-                  {/* Total & Purchase */}
+                  {/* Total */}
                   <View style={styles.totalSection}>
-                    <Text style={styles.totalLabel}>Total:</Text>
-                    <Text style={styles.totalPrice}>
-                      {TICKET_CATEGORIES[selectedCategory].price * quantity} MAD
-                    </Text>
+                    <Text style={styles.totalLabel}>Total à payer:</Text>
+                    <Text style={styles.totalPrice}>{calculatePrice()} MAD</Text>
                   </View>
 
                   <TouchableOpacity
-                    style={styles.purchaseBtn}
-                    onPress={handlePurchase}
+                    style={[styles.purchaseBtn, purchasing && styles.purchaseBtnDisabled]}
+                    onPress={handleReserve}
                     disabled={purchasing}
                   >
                     {purchasing ? (
                       <ActivityIndicator color={COLORS.textWhite} />
                     ) : (
-                      <Text style={styles.purchaseBtnText}>🎟️ Acheter mes billets</Text>
+                      <Text style={styles.purchaseBtnText}>🎟️ Réserver et Payer</Text>
                     )}
                   </TouchableOpacity>
                 </>
@@ -256,6 +470,172 @@ const TicketsScreen = ({ navigation }) => {
           )
         }
       />
+
+      {/* Modal Paiement */}
+      <Modal
+        visible={showPaymentModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>💳 Paiement par Carte</Text>
+            <Text style={styles.modalSubtitle}>
+              Total: {pendingTicket?.total_amount} MAD
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Numéro de carte</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1234 5678 9012 3456"
+                placeholderTextColor={COLORS.textLight}
+                value={cardNumber}
+                onChangeText={(text) => setCardNumber(text.replace(/\D/g, '').slice(0, 16))}
+                keyboardType="numeric"
+                maxLength={16}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nom du titulaire</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="NOM PRÉNOM"
+                placeholderTextColor={COLORS.textLight}
+                value={cardHolder}
+                onChangeText={setCardHolder}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.inputLabel}>Expiration</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="MM/AA"
+                  placeholderTextColor={COLORS.textLight}
+                  value={cardExpiry}
+                  onChangeText={(text) => setCardExpiry(formatExpiry(text))}
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>CVV</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="123"
+                  placeholderTextColor={COLORS.textLight}
+                  value={cardCVV}
+                  onChangeText={(text) => setCardCVV(text.replace(/\D/g, '').slice(0, 3))}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  secureTextEntry
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalNote}>
+              <Text style={styles.noteText}>🔒 Paiement simulé - Aucune transaction réelle</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.payBtn, paying && styles.payBtnDisabled]}
+              onPress={handleCardPayment}
+              disabled={paying}
+            >
+              {paying ? (
+                <ActivityIndicator color={COLORS.textWhite} />
+              ) : (
+                <Text style={styles.payBtnText}>💳 Payer {pendingTicket?.total_amount} MAD</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={handleCancelReservation}
+            >
+              <Text style={styles.cancelBtnText}>Annuler la réservation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Choix Méthode de Paiement */}
+      <Modal
+        visible={showPaymentMethodModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPaymentMethodModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>💰 Méthode de Paiement</Text>
+            <Text style={styles.modalSubtitle}>
+              Réservation: {quantity} billet(s) - {pendingTicket?.total_amount} MAD
+            </Text>
+
+            <View style={styles.paymentOptions}>
+              {/* Paiement par carte */}
+              <TouchableOpacity
+                style={styles.paymentOption}
+                onPress={() => {
+                  setShowPaymentMethodModal(false);
+                  setShowPaymentModal(true);
+                }}
+                disabled={paying}
+              >
+                <View style={styles.paymentOptionIcon}>
+                  <Text style={styles.paymentEmoji}>💳</Text>
+                </View>
+                <View style={styles.paymentOptionInfo}>
+                  <Text style={styles.paymentOptionTitle}>Carte bancaire</Text>
+                  <Text style={styles.paymentOptionDesc}>Visa, Mastercard, CMI</Text>
+                </View>
+                <Text style={styles.paymentArrow}>→</Text>
+              </TouchableOpacity>
+
+              {/* Paiement Mobile Money */}
+              <TouchableOpacity
+                style={styles.paymentOption}
+                onPress={handleMobilePayment}
+                disabled={paying}
+              >
+                <View style={styles.paymentOptionIcon}>
+                  <Text style={styles.paymentEmoji}>📱</Text>
+                </View>
+                <View style={styles.paymentOptionInfo}>
+                  <Text style={styles.paymentOptionTitle}>Mobile Money</Text>
+                  <Text style={styles.paymentOptionDesc}>Orange Money, Inwi Money</Text>
+                </View>
+                {paying ? (
+                  <ActivityIndicator color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.paymentArrow}>→</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.securityNote}>
+              <Text style={styles.securityIcon}>🔐</Text>
+              <Text style={styles.securityText}>
+                Vos données de paiement sont sécurisées et cryptées
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={handleCancelReservation}
+              disabled={paying}
+            >
+              <Text style={styles.cancelBtnText}>Annuler la réservation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -361,6 +741,13 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     textAlign: 'center',
   },
+  basePriceText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginTop: 5,
+    fontWeight: '600',
+  },
   selectedBadge: {
     position: 'absolute',
     top: 10,
@@ -381,35 +768,37 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
-  categories: {
+  sectionsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  categoryCard: {
-    flex: 1,
+  sectionCard: {
+    width: '48%',
     backgroundColor: COLORS.card,
     borderRadius: SIZES.radiusMd,
-    padding: 15,
+    padding: 12,
     alignItems: 'center',
-    marginHorizontal: 5,
+    marginBottom: 10,
     borderWidth: 2,
     borderColor: 'transparent',
     ...SHADOWS.small,
   },
-  categoryCardSelected: {
+  sectionCardSelected: {
     borderColor: COLORS.primary,
   },
-  categoryIcon: {
+  sectionIcon: {
     fontSize: 24,
     marginBottom: 5,
   },
-  categoryLabel: {
-    fontSize: 14,
+  sectionLabel: {
+    fontSize: 12,
     fontWeight: 'bold',
     color: COLORS.text,
+    textAlign: 'center',
   },
-  categoryPrice: {
-    fontSize: 12,
+  sectionPrice: {
+    fontSize: 14,
     color: COLORS.primary,
     fontWeight: '600',
     marginTop: 5,
@@ -494,6 +883,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     ...SHADOWS.medium,
   },
+  purchaseBtnDisabled: {
+    opacity: 0.6,
+  },
   purchaseBtnText: {
     color: COLORS.textWhite,
     fontSize: 16,
@@ -503,6 +895,150 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: COLORS.textSecondary,
     marginTop: 50,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 5,
+    fontWeight: '600',
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    borderRadius: SIZES.radiusMd,
+    padding: 15,
+    fontSize: 16,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rowInputs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalNote: {
+    backgroundColor: COLORS.background,
+    padding: 10,
+    borderRadius: SIZES.radiusMd,
+    marginVertical: 15,
+  },
+  noteText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  payBtn: {
+    backgroundColor: COLORS.success,
+    padding: 18,
+    borderRadius: SIZES.radiusMd,
+    alignItems: 'center',
+    ...SHADOWS.medium,
+  },
+  payBtnDisabled: {
+    opacity: 0.6,
+  },
+  payBtnText: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelBtn: {
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  cancelBtnText: {
+    color: COLORS.error,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  // Payment method styles
+  paymentOptions: {
+    marginVertical: 15,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: SIZES.radiusMd,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  paymentOptionIcon: {
+    width: 50,
+    height: 50,
+    backgroundColor: COLORS.card,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  paymentEmoji: {
+    fontSize: 24,
+  },
+  paymentOptionInfo: {
+    flex: 1,
+  },
+  paymentOptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  paymentOptionDesc: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  paymentArrow: {
+    fontSize: 20,
+    color: COLORS.primary,
+  },
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+    padding: 12,
+    borderRadius: SIZES.radiusMd,
+    marginBottom: 15,
+  },
+  securityIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  securityText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
 });
 

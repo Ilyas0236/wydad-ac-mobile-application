@@ -1,3 +1,4 @@
+
 /**
  * ===========================================
  * WYDAD ATHLETIC CLUB - BACKEND SERVER
@@ -9,6 +10,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { initDatabase } = require('./database');
 const { seedAll } = require('./seed');
 
@@ -22,6 +24,8 @@ const productsRoutes = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
 const newsRoutes = require('./routes/news');
 const storesRoutes = require('./routes/stores');
+const uploadRoutes = require('./routes/upload');
+const complaintsRoutes = require('./routes/complaints');
 
 // Initialisation de l'application Express
 const app = express();
@@ -45,6 +49,9 @@ app.use(express.json());
 
 // Parser URL-encoded pour les formulaires
 app.use(express.urlencoded({ extended: true }));
+
+// Servir les fichiers uploadés (images)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ===========================================
 // ROUTE DE TEST / HEALTH CHECK
@@ -82,6 +89,8 @@ app.use('/products', productsRoutes);
 app.use('/orders', ordersRoutes);
 app.use('/news', newsRoutes);
 app.use('/stores', storesRoutes);
+app.use('/upload', uploadRoutes);
+app.use('/complaints', complaintsRoutes);
 
 // ===========================================
 // GESTION DES ERREURS 404
@@ -115,13 +124,15 @@ initDatabase()
   .then(async () => {
     // Initialiser les données par défaut (admin, etc.)
     await seedAll();
-    
-    app.listen(PORT, () => {
+
+    // Écouter sur 0.0.0.0 pour accepter les connexions depuis d'autres appareils
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('===========================================');
       console.log('🔴⚪ WYDAD ATHLETIC CLUB - API SERVER 🔴⚪');
       console.log('===========================================');
       console.log(`✅ Serveur démarré sur le port ${PORT}`);
-      console.log(`📍 URL: http://localhost:${PORT}`);
+      console.log(`📍 URL: http://0.0.0.0:${PORT}`);
+      console.log(`📱 Accessible sur le réseau local`);
       console.log('===========================================');
     });
   })

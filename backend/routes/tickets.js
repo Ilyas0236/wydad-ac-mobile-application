@@ -15,12 +15,11 @@ const authAdmin = require('../middleware/authAdmin');
 
 // Sections du stade Mohammed V
 const STADIUM_SECTIONS = [
-  { key: 'tribune_honneur', label: 'Tribune d\'Honneur', price_multiplier: 2.0 },
-  { key: 'tribune_presidentielle', label: 'Tribune Présidentielle', price_multiplier: 2.5 },
   { key: 'virage_nord', label: 'Virage Nord (Winners)', price_multiplier: 1.0 },
   { key: 'virage_sud', label: 'Virage Sud', price_multiplier: 1.0 },
-  { key: 'lateral_est', label: 'Latéral Est', price_multiplier: 1.5 },
-  { key: 'lateral_ouest', label: 'Latéral Ouest', price_multiplier: 1.5 }
+  { key: 'pelouse', label: 'Pelouse', price_multiplier: 1.5 },
+  { key: 'tribune', label: 'Tribune Latérale', price_multiplier: 2.5 },
+  { key: 'tribune_honneur', label: 'Tribune d\'Honneur', price_multiplier: 5.0 }
 ];
 
 // ===========================================
@@ -117,6 +116,8 @@ router.get('/:id', authUser, async (req, res) => {
 // ===========================================
 // POST /tickets - Réserver un ticket
 // ===========================================
+const MAX_TICKETS_PER_MATCH = 4; // Limite maximum par utilisateur par match
+
 router.post('/', authUser, async (req, res) => {
   try {
     const { match_id, seat_section, quantity } = req.body;
@@ -131,10 +132,30 @@ router.post('/', authUser, async (req, res) => {
 
     const qty = parseInt(quantity) || 1;
 
-    if (qty < 1 || qty > 10) {
+    if (qty < 1 || qty > MAX_TICKETS_PER_MATCH) {
       return res.status(400).json({
         success: false,
-        message: 'Quantité entre 1 et 10 tickets maximum'
+        message: `Quantité entre 1 et ${MAX_TICKETS_PER_MATCH} tickets maximum par réservation`
+      });
+    }
+
+    // Vérifier combien de tickets l'utilisateur a déjà pour ce match
+    const existingTickets = await get(
+      `SELECT COALESCE(SUM(quantity), 0) as total_qty 
+       FROM tickets 
+       WHERE user_id = ? AND match_id = ? AND status != 'cancelled'`,
+      [req.user.id, match_id]
+    );
+
+    const currentTickets = existingTickets?.total_qty || 0;
+
+    if (currentTickets + qty > MAX_TICKETS_PER_MATCH) {
+      const remaining = MAX_TICKETS_PER_MATCH - currentTickets;
+      return res.status(400).json({
+        success: false,
+        message: remaining > 0
+          ? `Vous avez déjà ${currentTickets} ticket(s) pour ce match. Vous pouvez encore réserver ${remaining} ticket(s) maximum.`
+          : `Vous avez atteint la limite de ${MAX_TICKETS_PER_MATCH} tickets par match.`
       });
     }
 
@@ -160,16 +181,35 @@ router.post('/', authUser, async (req, res) => {
       });
     }
 
-    // Vérifier les places disponibles
-    if (match.available_seats < qty) {
-      return res.status(400).json({
-        success: false,
-        message: 'Pas assez de places disponibles'
-      });
+    // Checking for specific section configuration
+    const sectionConfig = await get(
+      'SELECT * FROM match_sections WHERE match_id = ? AND category_key = ?',
+      [match_id, seat_section]
+    );
+
+    let unitPrice;
+
+    if (sectionConfig) {
+      // Use configured price and capacity
+      if (sectionConfig.sold + qty > sectionConfig.capacity) {
+        return res.status(400).json({
+          success: false,
+          message: 'Plus de places disponibles dans cette section'
+        });
+      }
+      unitPrice = sectionConfig.price;
+    } else {
+      // Fallback to configured global match price + multiplier
+      // But verify global availability
+      if (match.available_seats < qty) {
+        return res.status(400).json({
+          success: false,
+          message: 'Pas assez de places disponibles'
+        });
+      }
+      unitPrice = match.ticket_price * section.price_multiplier;
     }
 
-    // Calculer le prix
-    const unitPrice = match.ticket_price * section.price_multiplier;
     const totalAmount = unitPrice * qty;
 
     // Générer un numéro de siège
@@ -193,7 +233,16 @@ router.post('/', authUser, async (req, res) => {
       ]
     );
 
-    // Mettre à jour les places disponibles
+    // Mettre à jour les compteurs
+    if (sectionConfig) {
+      // Increment sold count for the section
+      await run(
+        'UPDATE match_sections SET sold = sold + ? WHERE match_id = ? AND category_key = ?',
+        [qty, match_id, seat_section]
+      );
+    }
+
+    // Always update global match availability
     await run(
       'UPDATE matches SET available_seats = available_seats - ? WHERE id = ?',
       [qty, match_id]
@@ -488,18 +537,47 @@ router.get('/admin/all', authAdmin, async (req, res) => {
 // ===========================================
 // TÉLÉCHARGER UN TICKET EN PDF
 // GET /tickets/:id/pdf
+// Accepte le token via query parameter OU header Authorization
 // ===========================================
 const { generateTicketPDF } = require('../utils/pdfGenerator');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'wac_secret_key_2025_wydad_champions';
 
-router.get('/:id/pdf', authUser, async (req, res) => {
+router.get('/:id/pdf', async (req, res) => {
   try {
     const ticketId = req.params.id;
-    const userId = req.user.id;
+
+    // Récupérer le token depuis query param ou header
+    let token = req.query.token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token requis pour télécharger le PDF'
+      });
+    }
+
+    // Vérifier le token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token invalide ou expiré'
+      });
+    }
+
+    const userId = decoded.id;
 
     // Récupérer le ticket avec les infos du match
     const ticket = await get(`
       SELECT t.*, 
-             m.home_team, m.away_team, m.match_date, m.stadium, m.competition,
+             m.opponent, m.match_date, m.venue, m.competition, m.is_home,
              u.name as user_name, u.email as user_email
       FROM tickets t
       JOIN matches m ON t.match_id = m.id
@@ -522,13 +600,23 @@ router.get('/:id/pdf', authUser, async (req, res) => {
     }
 
     // Construire les objets pour le générateur PDF
+    // Adapter les noms des champs pour correspondre au pdfGenerator
     const matchData = {
       id: ticket.match_id,
-      home_team: ticket.home_team,
-      away_team: ticket.away_team,
+      home_team: ticket.is_home ? 'WYDAD AC' : ticket.opponent,
+      away_team: ticket.is_home ? ticket.opponent : 'WYDAD AC',
       match_date: ticket.match_date,
-      stadium: ticket.stadium,
+      stadium: ticket.venue,
       competition: ticket.competition
+    };
+
+    const ticketData = {
+      id: ticket.id,
+      section: ticket.seat_section,
+      seat_number: ticket.seat_number,
+      quantity: ticket.quantity,
+      total_price: ticket.total_amount,
+      qr_code: ticket.qr_code
     };
 
     const userData = {
@@ -537,7 +625,7 @@ router.get('/:id/pdf', authUser, async (req, res) => {
     };
 
     // Générer le PDF
-    const pdfBuffer = await generateTicketPDF(ticket, matchData, userData);
+    const pdfBuffer = await generateTicketPDF(ticketData, matchData, userData);
 
     // Envoyer le PDF
     res.setHeader('Content-Type', 'application/pdf');

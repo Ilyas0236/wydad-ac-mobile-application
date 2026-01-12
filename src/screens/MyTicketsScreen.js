@@ -2,7 +2,7 @@
 // WYDAD AC - MY TICKETS SCREEN
 // ===========================================
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,24 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Modal,
+  Linking,
+  Share,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AuthContext } from '../context/AuthContext';
+import QRCode from 'react-native-qrcode-svg';
+import { useAuth } from '../context/AuthContext';
 import { ticketsAPI } from '../services/api';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
 
 const MyTicketsScreen = ({ navigation }) => {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -70,54 +77,107 @@ const MyTicketsScreen = ({ navigation }) => {
     return new Date(dateString) > new Date();
   };
 
+  const [downloading, setDownloading] = useState(false);
+
   const handleDownloadTicket = async (ticketId) => {
+    setDownloading(true);
     try {
-      // In a real app, this would download the PDF
-      Alert.alert(
-        'Téléchargement',
-        'Le téléchargement du billet PDF sera disponible dans une prochaine version.',
-        [{ text: 'OK' }]
-      );
+      const pdfUrl = await ticketsAPI.downloadPDF(ticketId);
+      
+      // Ouvrir le PDF dans le navigateur
+      const supported = await Linking.canOpenURL(pdfUrl);
+      if (supported) {
+        await Linking.openURL(pdfUrl);
+      } else {
+        Alert.alert(
+          'Téléchargement',
+          'Voulez-vous ouvrir le billet PDF dans votre navigateur?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Ouvrir', onPress: () => Linking.openURL(pdfUrl) },
+          ]
+        );
+      }
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de télécharger le billet');
+    } finally {
+      setDownloading(false);
     }
   };
 
-  const getCategoryInfo = (category) => {
-    const categories = {
-      tribune: { label: 'Tribune', icon: '🎫', color: COLORS.success },
-      gradins: { label: 'Gradins', icon: '🏟️', color: COLORS.primary },
-      vip: { label: 'VIP', icon: '⭐', color: '#FFD700' },
+  const handleShareTicket = async (ticket) => {
+    try {
+      const matchDate = formatDate(ticket.match_date);
+      const message = `🏟️ Mon billet WAC\n\n⚽ WAC vs ${ticket.opponent}\n📅 ${matchDate}\n🏠 ${ticket.venue}\n🎫 Section: ${getSectionInfo(ticket.seat_section).label}\n💺 Siège: ${ticket.seat_number}\n\n#WydadAthleticClub #DimaWydad 🔴⚪`;
+      
+      await Share.share({
+        message,
+        title: 'Mon billet WAC',
+      });
+    } catch (error) {
+      console.log('Erreur partage:', error);
+    }
+  };
+
+  const handleShowQRCode = (ticket) => {
+    setSelectedTicket(ticket);
+    setQrModalVisible(true);
+  };
+
+  const getSectionInfo = (section) => {
+    const sections = {
+      virage_nord: { label: 'Virage Nord (Winners)', icon: '🔴', color: COLORS.primary },
+      virage_sud: { label: 'Virage Sud', icon: '⚪', color: COLORS.textSecondary },
+      lateral_est: { label: 'Latéral Est', icon: '🎫', color: COLORS.success },
+      lateral_ouest: { label: 'Latéral Ouest', icon: '🎫', color: COLORS.success },
+      tribune_honneur: { label: 'Tribune d\'Honneur', icon: '🏟️', color: COLORS.primary },
+      tribune_presidentielle: { label: 'Tribune VIP', icon: '⭐', color: '#FFD700' },
     };
-    return categories[category] || categories.tribune;
+    return sections[section] || { label: section, icon: '🎫', color: COLORS.success };
+  };
+
+  // Générer les données du QR Code
+  const generateQRData = (ticket) => {
+    return JSON.stringify({
+      ticketId: ticket.id,
+      ref: `WAC-${ticket.id.toString().padStart(6, '0')}`,
+      matchId: ticket.match_id,
+      opponent: ticket.opponent,
+      date: ticket.match_date,
+      section: ticket.seat_section,
+      seat: ticket.seat_number,
+      quantity: ticket.quantity,
+      userId: user?.id,
+      status: ticket.status,
+    });
   };
 
   const renderTicket = ({ item }) => {
     const upcoming = isUpcoming(item.match_date);
-    const categoryInfo = getCategoryInfo(item.category);
+    const sectionInfo = getSectionInfo(item.seat_section);
 
     return (
       <View style={[styles.ticketCard, !upcoming && styles.pastTicket]}>
         {/* Status Badge */}
         <View style={[styles.statusBadge, upcoming ? styles.upcomingBadge : styles.pastBadge]}>
           <Text style={styles.statusText}>
-            {upcoming ? '🎟️ Valide' : '✓ Utilisé'}
+            {item.status === 'paid' ? '✅ Payé' : item.status === 'pending' ? '⏳ En attente' : '✓ Utilisé'}
           </Text>
         </View>
 
         {/* Ticket Header */}
         <View style={styles.ticketHeader}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryIcon}>{categoryInfo.icon}</Text>
-            <Text style={styles.categoryLabel}>{categoryInfo.label}</Text>
+          <View style={styles.sectionBadge}>
+            <Text style={styles.sectionIcon}>{sectionInfo.icon}</Text>
+            <Text style={styles.sectionLabel}>{sectionInfo.label}</Text>
           </View>
-          <Text style={styles.ticketPrice}>{item.price} MAD</Text>
+          <Text style={styles.ticketPrice}>{item.total_amount} MAD</Text>
         </View>
 
         {/* Match Info */}
         <View style={styles.matchInfo}>
           <Text style={styles.matchTeams}>
-            {item.home_team} vs {item.away_team}
+            {item.is_home ? 'WAC' : item.opponent} vs {item.is_home ? item.opponent : 'WAC'}
           </Text>
           <Text style={styles.competition}>{item.competition}</Text>
         </View>
@@ -136,7 +196,13 @@ const MyTicketsScreen = ({ navigation }) => {
 
         <View style={styles.stadiumRow}>
           <Text style={styles.detailIcon}>📍</Text>
-          <Text style={styles.stadiumText}>{item.stadium}</Text>
+          <Text style={styles.stadiumText}>{item.venue}</Text>
+        </View>
+
+        {/* Ticket details */}
+        <View style={styles.quantityRow}>
+          <Text style={styles.quantityLabel}>Quantité: {item.quantity} place(s)</Text>
+          <Text style={styles.seatNumber}>Siège: {item.seat_number}</Text>
         </View>
 
         {/* Ticket Reference */}
@@ -146,7 +212,7 @@ const MyTicketsScreen = ({ navigation }) => {
         </View>
 
         {/* Actions */}
-        {upcoming && (
+        {upcoming && item.status === 'paid' && (
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -158,13 +224,102 @@ const MyTicketsScreen = ({ navigation }) => {
 
             <TouchableOpacity
               style={[styles.actionBtn, styles.qrBtn]}
+              onPress={() => handleShowQRCode(item)}
             >
-              <Text style={styles.actionIcon}>🔲</Text>
-              <Text style={styles.actionText}>QR Code</Text>
+              <Text style={[styles.actionIcon, { color: COLORS.textWhite }]}>🔲</Text>
+              <Text style={[styles.actionText, { color: COLORS.textWhite }]}>QR Code</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.shareBtn]}
+              onPress={() => handleShareTicket(item)}
+            >
+              <Text style={styles.actionIcon}>📤</Text>
+              <Text style={styles.actionText}>Partager</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
+    );
+  };
+
+  // QR Code Modal
+  const renderQRModal = () => {
+    if (!selectedTicket) return null;
+
+    const sectionInfo = getSectionInfo(selectedTicket.seat_section);
+
+    return (
+      <Modal
+        visible={qrModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setQrModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🎟️ Votre Billet</Text>
+              <TouchableOpacity onPress={() => setQrModalVisible(false)}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Match Info */}
+            <View style={styles.qrMatchInfo}>
+              <Text style={styles.qrMatchTeams}>
+                {selectedTicket.is_home ? 'WAC' : selectedTicket.opponent} vs {selectedTicket.is_home ? selectedTicket.opponent : 'WAC'}
+              </Text>
+              <Text style={styles.qrCompetition}>{selectedTicket.competition}</Text>
+              <Text style={styles.qrDate}>
+                {formatDate(selectedTicket.match_date)} • {formatTime(selectedTicket.match_date)}
+              </Text>
+            </View>
+
+            {/* QR Code */}
+            <View style={styles.qrContainer}>
+              <View style={styles.qrWrapper}>
+                <QRCode
+                  value={generateQRData(selectedTicket)}
+                  size={200}
+                  color={COLORS.text}
+                  backgroundColor={COLORS.textWhite}
+                />
+              </View>
+              <Text style={styles.qrRef}>WAC-{selectedTicket.id.toString().padStart(6, '0')}</Text>
+            </View>
+
+            {/* Ticket Details */}
+            <View style={styles.qrDetails}>
+              <View style={styles.qrDetailRow}>
+                <Text style={styles.qrDetailLabel}>Section:</Text>
+                <Text style={styles.qrDetailValue}>{sectionInfo.icon} {sectionInfo.label}</Text>
+              </View>
+              <View style={styles.qrDetailRow}>
+                <Text style={styles.qrDetailLabel}>Siège:</Text>
+                <Text style={styles.qrDetailValue}>{selectedTicket.seat_number}</Text>
+              </View>
+              <View style={styles.qrDetailRow}>
+                <Text style={styles.qrDetailLabel}>Places:</Text>
+                <Text style={styles.qrDetailValue}>{selectedTicket.quantity}</Text>
+              </View>
+              <View style={styles.qrDetailRow}>
+                <Text style={styles.qrDetailLabel}>Stade:</Text>
+                <Text style={styles.qrDetailValue}>{selectedTicket.venue}</Text>
+              </View>
+            </View>
+
+            {/* Instructions */}
+            <View style={styles.qrInstructions}>
+              <Text style={styles.qrInstructionIcon}>💡</Text>
+              <Text style={styles.qrInstructionText}>
+                Présentez ce QR code à l'entrée du stade. Gardez votre téléphone chargé!
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -233,6 +388,9 @@ const MyTicketsScreen = ({ navigation }) => {
           </View>
         }
       />
+
+      {/* QR Code Modal */}
+      {renderQRModal()}
     </SafeAreaView>
   );
 };
@@ -321,6 +479,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  sectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  sectionIcon: {
+    fontSize: 16,
+    marginRight: 5,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
   ticketPrice: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -365,6 +540,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
   },
+  quantityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: SIZES.radiusSm,
+  },
+  quantityLabel: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  seatNumber: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
   referenceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -399,6 +593,9 @@ const styles = StyleSheet.create({
   },
   qrBtn: {
     backgroundColor: COLORS.primary,
+  },
+  shareBtn: {
+    backgroundColor: COLORS.info || '#3498db',
   },
   actionIcon: {
     fontSize: 16,
@@ -463,6 +660,114 @@ const styles = StyleSheet.create({
   loginBtnText: {
     color: COLORS.textWhite,
     fontWeight: 'bold',
+  },
+  // QR Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: SIZES.radiusLg,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    ...SHADOWS.large,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  closeBtn: {
+    fontSize: 24,
+    color: COLORS.textSecondary,
+    padding: 5,
+  },
+  qrMatchInfo: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  qrMatchTeams: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 5,
+  },
+  qrCompetition: {
+    fontSize: 13,
+    color: COLORS.primary,
+    marginBottom: 5,
+  },
+  qrDate: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  qrWrapper: {
+    backgroundColor: COLORS.textWhite,
+    padding: 15,
+    borderRadius: SIZES.radiusMd,
+    ...SHADOWS.small,
+  },
+  qrRef: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  qrDetails: {
+    backgroundColor: COLORS.background,
+    borderRadius: SIZES.radiusMd,
+    padding: 15,
+    marginBottom: 15,
+  },
+  qrDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  qrDetailLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  qrDetailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  qrInstructions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '15',
+    padding: 12,
+    borderRadius: SIZES.radiusSm,
+  },
+  qrInstructionIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  qrInstructionText: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.text,
+    lineHeight: 18,
   },
 });
 

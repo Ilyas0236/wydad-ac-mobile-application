@@ -263,7 +263,7 @@ router.post('/', authAdmin, async (req, res) => {
       success: true,
       message: 'Boutique créée avec succès',
       data: {
-        id: result.lastID,
+        id: result.id,
         name,
         city,
         type: storeType

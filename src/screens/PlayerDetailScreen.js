@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { playersAPI } from '../services/api';
@@ -77,9 +78,13 @@ const PlayerDetailScreen = ({ route, navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Player Hero */}
         <View style={styles.heroSection}>
-          <View style={styles.numberBadge}>
-            <Text style={styles.numberBadgeText}>{player.number}</Text>
-          </View>
+          {player.image ? (
+            <Image source={{ uri: player.image }} style={styles.playerImage} />
+          ) : (
+            <View style={styles.numberBadge}>
+              <Text style={styles.numberBadgeText}>{player.number}</Text>
+            </View>
+          )}
           <Text style={styles.playerName}>{player.name}</Text>
           <Text style={styles.positionText}>
             {POSITIONS[player.position]?.icon} {POSITIONS[player.position]?.label}
@@ -198,6 +203,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 30,
     paddingBottom: 40,
+  },
+  playerImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 15,
+    borderWidth: 3,
+    borderColor: COLORS.card,
   },
   numberBadge: {
     width: 80,

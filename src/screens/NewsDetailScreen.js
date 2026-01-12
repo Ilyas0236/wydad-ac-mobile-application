@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Share,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { newsAPI } from '../services/api';
@@ -92,9 +93,13 @@ const NewsDetailScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Article Image Placeholder */}
+        {/* Article Image */}
         <View style={styles.imageSection}>
-          <Text style={styles.imageEmoji}>📰</Text>
+          {article.image ? (
+            <Image source={{ uri: article.image }} style={styles.articleImage} />
+          ) : (
+            <Text style={styles.imageEmoji}>📰</Text>
+          )}
           
           {/* Category Badge */}
           <View style={styles.categoryBadge}>
@@ -215,6 +220,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  articleImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   imageEmoji: {
     fontSize: 80,

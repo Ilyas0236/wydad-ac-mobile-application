@@ -10,6 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { matchesAPI } from '../services/api';
@@ -46,7 +47,7 @@ const MatchesScreen = ({ navigation }) => {
 
   const filteredMatches = matches.filter((match) => {
     if (filter === 'all') return true;
-    const matchDate = new Date(match.date);
+    const matchDate = new Date(match.match_date);
     const now = new Date();
     if (filter === 'upcoming') return matchDate > now;
     if (filter === 'past') return matchDate < now;
@@ -76,13 +77,14 @@ const MatchesScreen = ({ navigation }) => {
   };
 
   const renderMatch = ({ item }) => {
-    const upcoming = isUpcoming(item.date);
-    
+    const upcoming = isUpcoming(item.match_date);
+    const homeTeam = item.is_home ? 'WAC' : item.opponent;
+    const awayTeam = item.is_home ? item.opponent : 'WAC';
+    const homeScore = item.is_home ? item.score_wac : item.score_opponent;
+    const awayScore = item.is_home ? item.score_opponent : item.score_wac;
+
     return (
-      <TouchableOpacity
-        style={styles.matchCard}
-        onPress={() => navigation.navigate('MatchDetail', { matchId: item.id })}
-      >
+      <View style={styles.matchCard}>
         {/* Competition Badge */}
         <View style={styles.competitionBadge}>
           <Text style={styles.competitionText}>{item.competition}</Text>
@@ -90,17 +92,18 @@ const MatchesScreen = ({ navigation }) => {
 
         {/* Date & Time */}
         <View style={styles.dateRow}>
-          <Text style={styles.dateText}>{formatDate(item.date)}</Text>
-          <Text style={styles.timeText}>{formatTime(item.date)}</Text>
+          <Text style={styles.dateText}>{formatDate(item.match_date)}</Text>
+          <Text style={styles.timeText}>{formatTime(item.match_date)}</Text>
         </View>
 
         {/* Teams */}
         <View style={styles.teamsContainer}>
           <View style={styles.teamBox}>
-            <View style={[styles.teamLogo, { backgroundColor: item.home_team === 'WAC' ? COLORS.primary : COLORS.border }]}>
-              <Text style={styles.teamLogoText}>{item.home_team.substring(0, 3).toUpperCase()}</Text>
-            </View>
-            <Text style={styles.teamName} numberOfLines={2}>{item.home_team}</Text>
+            <Image
+              source={{ uri: item.is_home ? (item.wac_logo || 'https://upload.wikimedia.org/wikipedia/fr/d/d4/Wydad_Athletic_Club_logo.png') : (item.opponent_logo || 'https://via.placeholder.com/50') }}
+              style={styles.teamLogoImg}
+            />
+            <Text style={styles.teamName} numberOfLines={2}>{homeTeam}</Text>
           </View>
 
           <View style={styles.scoreBox}>
@@ -108,13 +111,13 @@ const MatchesScreen = ({ navigation }) => {
               <Text style={styles.vsText}>VS</Text>
             ) : (
               <View style={styles.scoreContainer}>
-                <Text style={styles.scoreText}>{item.home_score}</Text>
+                <Text style={styles.scoreText}>{homeScore}</Text>
                 <Text style={styles.scoreSeparator}>-</Text>
-                <Text style={styles.scoreText}>{item.away_score}</Text>
+                <Text style={styles.scoreText}>{awayScore}</Text>
               </View>
             )}
-            {upcoming && item.tickets_available > 0 && (
-              <TouchableOpacity 
+            {upcoming && item.available_seats > 0 && (
+              <TouchableOpacity
                 style={styles.ticketBtn}
                 onPress={() => navigation.navigate('Tickets', { screen: 'TicketsList', params: { matchId: item.id } })}
               >
@@ -124,23 +127,24 @@ const MatchesScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.teamBox}>
-            <View style={[styles.teamLogo, { backgroundColor: item.away_team === 'WAC' ? COLORS.primary : COLORS.border }]}>
-              <Text style={styles.teamLogoText}>{item.away_team.substring(0, 3).toUpperCase()}</Text>
-            </View>
-            <Text style={styles.teamName} numberOfLines={2}>{item.away_team}</Text>
+            <Image
+              source={{ uri: item.is_home ? (item.opponent_logo || 'https://via.placeholder.com/50') : (item.wac_logo || 'https://upload.wikimedia.org/wikipedia/fr/d/d4/Wydad_Athletic_Club_logo.png') }}
+              style={styles.teamLogoImg}
+            />
+            <Text style={styles.teamName} numberOfLines={2}>{awayTeam}</Text>
           </View>
         </View>
 
         {/* Stadium */}
         <View style={styles.stadiumRow}>
-          <Text style={styles.stadiumText}>📍 {item.stadium}</Text>
+          <Text style={styles.stadiumText}>📍 {item.venue}</Text>
         </View>
 
         {/* Status Badge */}
         <View style={[styles.statusBadge, upcoming ? styles.statusUpcoming : styles.statusPast]}>
           <Text style={styles.statusText}>{upcoming ? 'À venir' : 'Terminé'}</Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -294,13 +298,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  teamLogo: {
+  teamLogoImg: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: COLORS.textWhite,
     marginBottom: 8,
+    resizeMode: 'contain',
   },
   teamLogoText: {
     color: COLORS.textWhite,

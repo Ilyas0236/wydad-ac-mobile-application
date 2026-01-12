@@ -2,7 +2,7 @@
 // WYDAD AC - REGISTER SCREEN
 // ===========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,17 +13,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, SIZES } from '../../theme/colors';
 
 const RegisterScreen = ({ navigation }) => {
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Rediriger si déjà connecté
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Tabs' }],
+      });
+    }
+  }, [isAuthenticated, navigation]);
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -45,7 +56,13 @@ const RegisterScreen = ({ navigation }) => {
     const result = await register(name, email, password);
     setIsLoading(false);
 
-    if (!result.success) {
+    if (result.success) {
+      // Navigation après inscription réussie
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Tabs' }],
+      });
+    } else {
       Alert.alert('Erreur', result.message);
     }
   };
@@ -58,7 +75,11 @@ const RegisterScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>🔴⚪</Text>
+          <Image 
+            source={require('../../../assets/logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>WYDAD AC</Text>
           <Text style={styles.subtitle}>Rejoignez la famille Wydadie</Text>
         </View>
@@ -154,7 +175,8 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logo: {
-    fontSize: 50,
+    width: 80,
+    height: 80,
   },
   title: {
     fontSize: 28,

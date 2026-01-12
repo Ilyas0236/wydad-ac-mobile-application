@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { run, get, all } = require('../database');
-const { authUser } = require('../middleware');
+const { authUser, authAdmin } = require('../middleware');
 
 // ===========================================
 // CRÉER UNE COMMANDE
@@ -14,7 +14,7 @@ const { authUser } = require('../middleware');
 router.post('/', authUser, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { items, shipping_address, shipping_city, shipping_phone } = req.body;
+    const { items, shipping_address, shipping_city, shipping_phone, payment_method } = req.body;
 
     // Validation
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -87,16 +87,22 @@ router.post('/', authUser, async (req, res) => {
     // Générer un numéro de commande unique
     const orderNumber = `WAC-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
+    // Déterminer le statut initial selon le mode de paiement
+    const isCOD = payment_method === 'cod';
+    const initialStatus = isCOD ? 'confirmed' : 'pending';
+    const paymentRef = isCOD ? `COD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : null;
+
     // Créer la commande
     const result = await run(
       `INSERT INTO orders (
         user_id, order_number, total_amount, shipping_fee, 
-        shipping_address, shipping_city, shipping_phone, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [userId, orderNumber, finalTotal, shippingFee, shipping_address, shipping_city, shipping_phone]
+        shipping_address, shipping_city, shipping_phone, status,
+        payment_method, payment_ref
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, orderNumber, finalTotal, shippingFee, shipping_address, shipping_city, shipping_phone, initialStatus, payment_method || 'card', paymentRef]
     );
 
-    const orderId = result.lastID;
+    const orderId = result.id;
 
     // Ajouter les items de la commande
     for (const item of orderItems) {
@@ -116,7 +122,7 @@ router.post('/', authUser, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Commande créée avec succès',
+      message: isCOD ? 'Commande confirmée (paiement à la livraison)' : 'Commande créée avec succès',
       data: {
         order_id: orderId,
         order_number: orderNumber,
@@ -124,7 +130,9 @@ router.post('/', authUser, async (req, res) => {
         subtotal: totalAmount,
         shipping_fee: shippingFee,
         total: finalTotal,
-        status: 'pending',
+        status: initialStatus,
+        payment_method: payment_method || 'card',
+        payment_ref: paymentRef,
         shipping: {
           address: shipping_address,
           city: shipping_city,
@@ -173,7 +181,7 @@ router.post('/:id/pay', authUser, async (req, res) => {
     }
 
     // Méthodes de paiement acceptées
-    const validMethods = ['card', 'cash_on_delivery', 'bank_transfer'];
+    const validMethods = ['card', 'cod', 'cash_on_delivery', 'bank_transfer'];
     const method = payment_method || 'card';
 
     if (!validMethods.includes(method)) {
@@ -185,7 +193,7 @@ router.post('/:id/pay', authUser, async (req, res) => {
 
     // Simuler le paiement (toujours succès)
     const paymentRef = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const newStatus = method === 'cash_on_delivery' ? 'confirmed' : 'paid';
+    const newStatus = (method === 'cash_on_delivery' || method === 'cod') ? 'confirmed' : 'paid';
 
     await run(
       `UPDATE orders SET 
@@ -370,8 +378,6 @@ router.post('/:id/cancel', authUser, async (req, res) => {
 // ADMIN: TOUTES LES COMMANDES
 // GET /orders/admin/all
 // ===========================================
-const { authAdmin } = require('../middleware');
-
 router.get('/admin/all', authAdmin, async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;

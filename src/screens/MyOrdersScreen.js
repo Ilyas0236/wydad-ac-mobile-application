@@ -2,7 +2,7 @@
 // WYDAD AC - MY ORDERS SCREEN
 // ===========================================
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,24 +10,31 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { ordersAPI } from '../services/api';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
 
 const MyOrdersScreen = ({ navigation }) => {
-  const { user } = useContext(AuthContext);
+  const { user, isAuthenticated } = useAuth();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && isAuthenticated) {
       loadMyOrders();
+    } else {
+      // Réinitialiser les commandes si pas authentifié
+      setOrders([]);
+      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isAuthenticated]);
 
   const loadMyOrders = async () => {
     try {
@@ -57,10 +64,85 @@ const MyOrdersScreen = ({ navigation }) => {
     });
   };
 
+  // Annuler une commande
+  const handleCancelOrder = (order) => {
+    Alert.alert(
+      'Annuler la commande',
+      `Voulez-vous vraiment annuler la commande #${order.id.toString().padStart(6, '0')}?\n\nCette action est irréversible.`,
+      [
+        { text: 'Non', style: 'cancel' },
+        { 
+          text: 'Oui, annuler', 
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingOrder(order.id);
+            try {
+              const response = await ordersAPI.cancel(order.id);
+              if (response.success) {
+                Alert.alert('✓ Commande annulée', 'Votre commande a été annulée avec succès.');
+                loadMyOrders();
+              } else {
+                Alert.alert('Erreur', response.message || 'Impossible d\'annuler la commande');
+              }
+            } catch (error) {
+              Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+            } finally {
+              setCancellingOrder(null);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  // Re-commander les mêmes produits
+  const handleReorder = (order) => {
+    Alert.alert(
+      'Commander à nouveau',
+      'Cette fonctionnalité sera disponible prochainement.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  // Rendu d'une étape de suivi
+  const renderTrackingStep = (stepStatus, label, currentStatus) => {
+    const statusOrder = ['pending', 'confirmed', 'paid', 'shipped', 'delivered'];
+    const currentIndex = statusOrder.indexOf(currentStatus);
+    const stepIndex = statusOrder.indexOf(stepStatus);
+    
+    // Si la commande est annulée
+    if (currentStatus === 'cancelled') {
+      return (
+        <View key={stepStatus} style={styles.trackingStep}>
+          <View style={[styles.trackingDot, styles.trackingDotInactive]} />
+          <Text style={[styles.trackingLabel, styles.trackingLabelInactive]}>{label}</Text>
+        </View>
+      );
+    }
+    
+    const isCompleted = stepIndex <= currentIndex;
+    const isCurrent = stepIndex === currentIndex;
+    
+    return (
+      <View key={stepStatus} style={styles.trackingStep}>
+        <View style={[
+          styles.trackingDot, 
+          isCompleted ? styles.trackingDotCompleted : styles.trackingDotInactive,
+          isCurrent && styles.trackingDotCurrent
+        ]} />
+        <Text style={[
+          styles.trackingLabel,
+          isCompleted ? styles.trackingLabelCompleted : styles.trackingLabelInactive
+        ]}>{label}</Text>
+      </View>
+    );
+  };
+
   const getStatusInfo = (status) => {
     const statuses = {
-      pending: { label: 'En attente', icon: '⏳', color: COLORS.warning },
+      pending: { label: 'En attente de paiement', icon: '⏳', color: COLORS.warning },
       confirmed: { label: 'Confirmée', icon: '✓', color: COLORS.primary },
+      paid: { label: 'Payée', icon: '💳', color: COLORS.success },
       shipped: { label: 'Expédiée', icon: '📦', color: COLORS.info },
       delivered: { label: 'Livrée', icon: '✅', color: COLORS.success },
       cancelled: { label: 'Annulée', icon: '✗', color: COLORS.error },
@@ -68,13 +150,22 @@ const MyOrdersScreen = ({ navigation }) => {
     return statuses[status] || statuses.pending;
   };
 
+  const getPaymentMethodInfo = (method) => {
+    const methods = {
+      card: { label: 'Carte bancaire', icon: '💳' },
+      cod: { label: 'Paiement à la livraison', icon: '💵' },
+      cash_on_delivery: { label: 'Paiement à la livraison', icon: '💵' },
+    };
+    return methods[method] || { label: method || 'Non spécifié', icon: '💰' };
+  };
+
   const renderOrderItem = (item, index) => (
     <View key={index} style={styles.orderItem}>
       <View style={styles.itemIcon}>
         <Text style={styles.itemEmoji}>
-          {item.category === 'maillot' ? '👕' :
-           item.category === 'vetement' ? '🧥' :
-           item.category === 'ballon' ? '⚽' : '🧢'}
+          {item.category === 'maillots' ? '👕' :
+           item.category === 'vetements' ? '🧥' :
+           item.category === 'equipement' ? '⚽' : '🧢'}
         </Text>
       </View>
       <View style={styles.itemInfo}>
@@ -88,6 +179,7 @@ const MyOrdersScreen = ({ navigation }) => {
 
   const renderOrder = ({ item }) => {
     const statusInfo = getStatusInfo(item.status);
+    const paymentInfo = getPaymentMethodInfo(item.payment_method);
     const isExpanded = expandedOrder === item.id;
 
     return (
@@ -109,12 +201,19 @@ const MyOrdersScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Payment Method Badge */}
+        <View style={styles.paymentBadge}>
+          <Text style={styles.paymentText}>
+            {paymentInfo.icon} {paymentInfo.label}
+          </Text>
+        </View>
+
         {/* Order Summary */}
         <View style={styles.orderSummary}>
           <Text style={styles.itemsCount}>
             {item.items?.length || 0} article(s)
           </Text>
-          <Text style={styles.orderTotal}>{item.total_price} MAD</Text>
+          <Text style={styles.orderTotal}>{item.total_amount} MAD</Text>
         </View>
 
         {/* Expanded Details */}
@@ -131,14 +230,68 @@ const MyOrdersScreen = ({ navigation }) => {
               <Text style={styles.deliveryText}>
                 📍 {item.shipping_address || 'Retrait en magasin'}
               </Text>
+              {item.shipping_city && (
+                <Text style={styles.deliveryText}>
+                  🏙️ {item.shipping_city}
+                </Text>
+              )}
+              {item.shipping_phone && (
+                <Text style={styles.deliveryText}>
+                  📞 {item.shipping_phone}
+                </Text>
+              )}
+            </View>
+
+            {/* Suivi de commande */}
+            <View style={styles.divider} />
+            <View style={styles.trackingSection}>
+              <Text style={styles.trackingTitle}>📦 Suivi de commande</Text>
+              <View style={styles.trackingSteps}>
+                {renderTrackingStep('pending', 'En attente', item.status)}
+                {renderTrackingStep('confirmed', 'Confirmée', item.status)}
+                {renderTrackingStep('paid', 'Payée', item.status)}
+                {renderTrackingStep('shipped', 'Expédiée', item.status)}
+                {renderTrackingStep('delivered', 'Livrée', item.status)}
+              </View>
             </View>
 
             {/* Actions */}
-            {item.status === 'delivered' && (
-              <TouchableOpacity style={styles.reorderBtn}>
-                <Text style={styles.reorderText}>🔄 Commander à nouveau</Text>
+            <View style={styles.actionsRow}>
+              {/* Bouton Annuler - visible pour pending et confirmed */}
+              {['pending', 'confirmed'].includes(item.status) && (
+                <TouchableOpacity 
+                  style={styles.cancelOrderBtn}
+                  onPress={() => handleCancelOrder(item)}
+                  disabled={cancellingOrder === item.id}
+                >
+                  {cancellingOrder === item.id ? (
+                    <ActivityIndicator size="small" color={COLORS.error} />
+                  ) : (
+                    <>
+                      <Text style={styles.cancelOrderIcon}>✗</Text>
+                      <Text style={styles.cancelOrderText}>Annuler</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Re-commander - visible pour delivered */}
+              {item.status === 'delivered' && (
+                <TouchableOpacity 
+                  style={styles.reorderBtn}
+                  onPress={() => handleReorder(item)}
+                >
+                  <Text style={styles.reorderIcon}>🔄</Text>
+                  <Text style={styles.reorderText}>Commander à nouveau</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Contacter - toujours visible */}
+              <TouchableOpacity style={styles.contactBtn}>
+                <Text style={styles.contactIcon}>💬</Text>
+                <Text style={styles.contactText}>Support</Text>
               </TouchableOpacity>
-            )}
+            </View>
           </View>
         )}
 
@@ -280,6 +433,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  paymentBadge: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  paymentText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
   orderSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -360,18 +525,115 @@ const styles = StyleSheet.create({
   deliveryText: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    marginTop: 3,
+  },
+  // Tracking section
+  trackingSection: {
+    marginTop: 10,
+  },
+  trackingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  trackingSteps: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trackingStep: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  trackingDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginBottom: 5,
+  },
+  trackingDotCompleted: {
+    backgroundColor: COLORS.success,
+  },
+  trackingDotInactive: {
+    backgroundColor: COLORS.border,
+  },
+  trackingDotCurrent: {
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+  },
+  trackingLabel: {
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  trackingLabelCompleted: {
+    color: COLORS.success,
+    fontWeight: '600',
+  },
+  trackingLabelInactive: {
+    color: COLORS.textLight,
+  },
+  // Actions row
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: 15,
+    gap: 10,
+  },
+  cancelOrderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.error + '15',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: SIZES.radiusSm,
+  },
+  cancelOrderIcon: {
+    fontSize: 14,
+    color: COLORS.error,
+    marginRight: 5,
+  },
+  cancelOrderText: {
+    color: COLORS.error,
+    fontWeight: '600',
+    fontSize: 13,
   },
   reorderBtn: {
-    backgroundColor: COLORS.primary + '15',
-    padding: 12,
-    borderRadius: SIZES.radiusMd,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15,
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary + '15',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: SIZES.radiusSm,
+    flex: 1,
+  },
+  reorderIcon: {
+    fontSize: 14,
+    marginRight: 5,
   },
   reorderText: {
     color: COLORS.primary,
     fontWeight: '600',
+    fontSize: 13,
+  },
+  contactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.info + '15',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: SIZES.radiusSm,
+  },
+  contactIcon: {
     fontSize: 14,
+    marginRight: 5,
+  },
+  contactText: {
+    color: COLORS.info || '#3498db',
+    fontWeight: '600',
+    fontSize: 13,
   },
   expandIndicator: {
     alignItems: 'center',

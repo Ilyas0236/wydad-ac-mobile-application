@@ -44,12 +44,38 @@ const authUser = async (req, res, next) => {
     // Vérifier et décoder le token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Vérifier que c'est bien un token utilisateur
-    if (decoded.type !== 'user') {
+    // Vérifier que c'est un token utilisateur ou admin
+    if (decoded.type !== 'user' && decoded.type !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Accès refusé - Compte utilisateur requis'
+        message: 'Accès refusé - Compte requis'
       });
+    }
+
+    // Si c'est un admin, récupérer les infos de la table admins
+    if (decoded.type === 'admin') {
+      const admin = await get(
+        'SELECT id, username as name, email FROM admins WHERE id = ?',
+        [decoded.id]
+      );
+
+      if (!admin) {
+        return res.status(401).json({
+          success: false,
+          message: 'Admin non trouvé'
+        });
+      }
+
+      req.user = {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        phone: null,
+        avatar: null,
+        type: 'admin'
+      };
+
+      return next();
     }
 
     // Vérifier que l'utilisateur existe et est actif

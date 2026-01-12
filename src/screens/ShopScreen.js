@@ -1,8 +1,8 @@
 // ===========================================
-// WYDAD AC - SHOP SCREEN (BOUTIQUE)
+// WYDAD AC - SHOP SCREEN PROFESSIONAL
 // ===========================================
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,22 +11,29 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  Image,
+  Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { productsAPI } from '../services/api';
-import { CartContext } from '../context/CartContext';
+import { useCart } from '../context/CartContext';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
+
+const { width } = Dimensions.get('window');
 
 const CATEGORIES = [
   { key: 'all', label: 'Tout', icon: '🛍️' },
-  { key: 'maillot', label: 'Maillots', icon: '👕' },
-  { key: 'vetement', label: 'Vêtements', icon: '🧥' },
-  { key: 'accessoire', label: 'Accessoires', icon: '🧢' },
-  { key: 'ballon', label: 'Ballons', icon: '⚽' },
+  { key: 'maillots', label: 'Maillots', icon: '👕' },
+  { key: 'vetements', label: 'Vêtements', icon: '🧥' },
+  { key: 'accessoires', label: 'Accessoires', icon: '🧢' },
+  { key: 'equipement', label: 'Équipement', icon: '⚽' },
+  { key: 'enfants', label: 'Enfants', icon: '👶' },
 ];
 
 const ShopScreen = ({ navigation }) => {
-  const { cartItems } = useContext(CartContext);
+  const { items: cartItems, getItemCount } = useCart();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,7 +63,7 @@ const ShopScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const cartItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItemsCount = getItemCount();
 
   const filteredProducts = products.filter((product) => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
@@ -64,74 +71,111 @@ const ShopScreen = ({ navigation }) => {
     return matchesCategory && matchesSearch;
   });
 
-  const renderProduct = ({ item }) => (
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('fr-MA').format(price);
+  };
+
+  const renderProduct = ({ item, index }) => (
     <TouchableOpacity
-      style={styles.productCard}
+      style={[styles.productCard, index % 2 === 0 ? { marginRight: 8 } : { marginLeft: 8 }]}
       onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
+      activeOpacity={0.9}
     >
-      {/* Product Image Placeholder */}
-      <View style={styles.productImage}>
-        <Text style={styles.imageEmoji}>
-          {item.category === 'maillot' ? '👕' :
-           item.category === 'vetement' ? '🧥' :
-           item.category === 'ballon' ? '⚽' : '🧢'}
-        </Text>
+      {/* Product Image */}
+      <View style={styles.productImageContainer}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.productImage} />
+        ) : (
+          <View style={styles.productImagePlaceholder}>
+            <Text style={styles.imageEmoji}>
+              {item.category === 'maillots' ? '👕' :
+               item.category === 'vetements' ? '🧥' :
+               item.category === 'equipement' ? '⚽' : '🧢'}
+            </Text>
+          </View>
+        )}
+        
+        {/* Stock Badge */}
+        {item.stock <= 5 && item.stock > 0 && (
+          <View style={styles.lowStockBadge}>
+            <Text style={styles.lowStockText}>🔥 Plus que {item.stock}!</Text>
+          </View>
+        )}
+        
+        {item.stock === 0 && (
+          <View style={styles.outOfStockOverlay}>
+            <Text style={styles.outOfStockOverlayText}>RUPTURE</Text>
+          </View>
+        )}
+        
+        {/* Favorite Button */}
+        <TouchableOpacity style={styles.favoriteBtn}>
+          <Text style={styles.favoriteBtnIcon}>🤍</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Product Info */}
       <View style={styles.productInfo}>
+        <Text style={styles.productCategory}>
+          {item.category?.toUpperCase() || 'PRODUIT'}
+        </Text>
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.productPrice}>{item.price} MAD</Text>
-          {item.stock > 0 ? (
-            <Text style={styles.inStock}>En stock</Text>
-          ) : (
-            <Text style={styles.outOfStock}>Rupture</Text>
-          )}
+          <Text style={styles.productPrice}>{formatPrice(item.price)} MAD</Text>
+          <View style={[styles.stockIndicator, { backgroundColor: item.stock > 0 ? COLORS.successLight : COLORS.errorLight }]}>
+            <View style={[styles.stockDot, { backgroundColor: item.stock > 0 ? COLORS.success : COLORS.error }]} />
+          </View>
         </View>
       </View>
-
-      {/* Stock Badge */}
-      {item.stock <= 5 && item.stock > 0 && (
-        <View style={styles.lowStockBadge}>
-          <Text style={styles.lowStockText}>Plus que {item.stock}!</Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>←</Text>
+      {/* Header avec gradient */}
+      <LinearGradient
+        colors={[COLORS.gradientStart, COLORS.gradientEnd]}
+        style={styles.header}
+      >
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Boutique WAC</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>🛍️ Boutique WAC</Text>
+          <Text style={styles.headerSubtitle}>{filteredProducts.length} produits disponibles</Text>
+        </View>
         <TouchableOpacity 
           style={styles.cartBtn}
           onPress={() => navigation.navigate('Cart')}
         >
-          <Text style={styles.cartIcon}>🛒</Text>
+          <View style={styles.cartIconContainer}>
+            <Text style={styles.cartIcon}>🛒</Text>
+          </View>
           {cartItemsCount > 0 && (
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{cartItemsCount}</Text>
             </View>
           )}
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher un produit..."
-          placeholderTextColor={COLORS.textLight}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <Text style={styles.searchIcon}>🔍</Text>
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un produit..."
+            placeholderTextColor={COLORS.textLight}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={styles.clearIcon}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Categories */}
@@ -148,16 +192,24 @@ const ShopScreen = ({ navigation }) => {
                 selectedCategory === item.key && styles.categoryBtnActive,
               ]}
               onPress={() => setSelectedCategory(item.key)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.categoryIcon}>{item.icon}</Text>
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === item.key && styles.categoryTextActive,
-                ]}
-              >
-                {item.label}
-              </Text>
+              {selectedCategory === item.key ? (
+                <LinearGradient
+                  colors={[COLORS.primary, COLORS.primaryDark]}
+                  style={styles.categoryBtnGradient}
+                >
+                  <Text style={styles.categoryIcon}>{item.icon}</Text>
+                  <Text style={[styles.categoryText, styles.categoryTextActive]}>
+                    {item.label}
+                  </Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.categoryBtnInner}>
+                  <Text style={styles.categoryIcon}>{item.icon}</Text>
+                  <Text style={styles.categoryText}>{item.label}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.categoriesList}
@@ -170,16 +222,25 @@ const ShopScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderProduct}
         numColumns={2}
-        columnWrapperStyle={styles.productRow}
         contentContainerStyle={styles.productsList}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🛍️</Text>
-            <Text style={styles.emptyText}>Aucun produit trouvé</Text>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={styles.emptyTitle}>Aucun produit trouvé</Text>
+            <Text style={styles.emptyText}>Essayez une autre recherche ou catégorie</Text>
           </View>
+        }
+        ListHeaderComponent={
+          filteredProducts.length > 0 ? (
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsText}>
+                {filteredProducts.length} résultat{filteredProducts.length > 1 ? 's' : ''}
+              </Text>
+            </View>
+          ) : null
         }
       />
     </SafeAreaView>
@@ -191,133 +252,244 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SIZES.screenPadding,
-    backgroundColor: COLORS.primary,
+    paddingHorizontal: SIZES.screenPadding,
+    paddingVertical: 15,
   },
-  backButton: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtnText: {
     color: COLORS.textWhite,
-    fontSize: 24,
+    fontSize: 22,
+  },
+  headerCenter: {
+    flex: 1,
+    marginHorizontal: 15,
   },
   headerTitle: {
     color: COLORS.textWhite,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: COLORS.textWhite,
+    fontSize: 12,
+    opacity: 0.8,
+    marginTop: 2,
   },
   cartBtn: {
     position: 'relative',
   },
-  cartIcon: {
-    fontSize: 24,
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: COLORS.textWhite,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  cartIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cartIcon: {
+    fontSize: 22,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.textWhite,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
   cartBadgeText: {
     color: COLORS.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
+  },
+  // Search
+  searchWrapper: {
+    paddingHorizontal: SIZES.screenPadding,
+    paddingVertical: 12,
+    backgroundColor: COLORS.background,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    margin: SIZES.screenPadding,
-    borderRadius: SIZES.radiusMd,
+    borderRadius: 14,
     paddingHorizontal: 15,
     ...SHADOWS.small,
+  },
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: COLORS.text,
   },
-  searchIcon: {
-    fontSize: 20,
+  clearIcon: {
+    fontSize: 16,
+    color: COLORS.textLight,
+    padding: 5,
   },
+  // Categories
   categoriesContainer: {
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderLight,
   },
   categoriesList: {
     paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   categoryBtn: {
+    marginRight: 10,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  categoryBtnActive: {},
+  categoryBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  categoryBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: COLORS.card,
     ...SHADOWS.small,
-  },
-  categoryBtnActive: {
-    backgroundColor: COLORS.primary,
+    borderRadius: 25,
   },
   categoryIcon: {
     fontSize: 16,
-    marginRight: 5,
+    marginRight: 6,
   },
   categoryText: {
     fontSize: 13,
     color: COLORS.text,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   categoryTextActive: {
     color: COLORS.textWhite,
-    fontWeight: 'bold',
   },
+  // Products
   productsList: {
-    padding: SIZES.screenPadding,
+    paddingHorizontal: SIZES.screenPadding,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
-  productRow: {
-    justifyContent: 'space-between',
+  resultsHeader: {
+    paddingVertical: 10,
+  },
+  resultsText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
   productCard: {
-    width: '48%',
+    flex: 1,
     backgroundColor: COLORS.card,
-    borderRadius: SIZES.radiusMd,
-    marginBottom: 15,
+    borderRadius: 16,
+    marginBottom: 16,
     overflow: 'hidden',
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
+  },
+  productImageContainer: {
+    position: 'relative',
   },
   productImage: {
-    height: 120,
+    height: 140,
+    width: '100%',
+    backgroundColor: COLORS.background,
+    resizeMode: 'cover',
+  },
+  productImagePlaceholder: {
+    height: 140,
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   imageEmoji: {
     fontSize: 50,
+    opacity: 0.5,
+  },
+  favoriteBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.small,
+  },
+  favoriteBtnIcon: {
+    fontSize: 16,
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  lowStockText: {
+    color: COLORS.textWhite,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockOverlayText: {
+    color: COLORS.textWhite,
+    fontSize: 14,
+    fontWeight: 'bold',
+    backgroundColor: COLORS.error,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   productInfo: {
-    padding: 12,
+    padding: 14,
+  },
+  productCategory: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   productName: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 5,
-  },
-  productCategory: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textTransform: 'capitalize',
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 20,
   },
   priceRow: {
     flexDirection: 'row',
@@ -329,40 +501,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.primary,
   },
-  inStock: {
-    fontSize: 10,
-    color: COLORS.success,
-    fontWeight: '600',
+  stockIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  outOfStock: {
-    fontSize: 10,
-    color: COLORS.error,
-    fontWeight: '600',
+  stockDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  lowStockBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: COLORS.warning,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  lowStockText: {
-    color: COLORS.textWhite,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+  // Empty State
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: 60,
   },
   emptyIcon: {
-    fontSize: 50,
+    fontSize: 60,
     marginBottom: 15,
+    opacity: 0.5,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.textSecondary,
   },
 });

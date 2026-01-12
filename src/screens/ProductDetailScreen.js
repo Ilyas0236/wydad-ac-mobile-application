@@ -2,7 +2,7 @@
 // WYDAD AC - PRODUCT DETAIL SCREEN
 // ===========================================
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,18 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { productsAPI } from '../services/api';
-import { CartContext } from '../context/CartContext';
+import { useCart } from '../context/CartContext';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
 
 const SIZES_OPTIONS = ['S', 'M', 'L', 'XL', 'XXL'];
 
 const ProductDetailScreen = ({ route, navigation }) => {
   const { productId } = route.params;
-  const { addItem, cartItems } = useContext(CartContext);
+  const { addItem, getItemCount } = useCart();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState('M');
@@ -44,7 +45,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const cartItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItemsCount = getItemCount();
 
   const handleAddToCart = () => {
     if (product.stock < quantity) {
@@ -52,13 +53,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
       return;
     }
 
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      size: selectedSize,
-      category: product.category,
-    }, quantity);
+    // addItem(product, quantity, size, color)
+    addItem(product, quantity, selectedSize, null);
 
     Alert.alert(
       '✅ Ajouté au panier!',
@@ -113,11 +109,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Product Image */}
         <View style={styles.imageSection}>
-          <Text style={styles.imageEmoji}>
-            {product.category === 'maillot' ? '👕' :
-             product.category === 'vetement' ? '🧥' :
-             product.category === 'ballon' ? '⚽' : '🧢'}
-          </Text>
+          {product.image ? (
+            <Image source={{ uri: product.image }} style={styles.productImageLarge} />
+          ) : (
+            <Text style={styles.imageEmoji}>
+              {product.category === 'maillots' ? '👕' :
+               product.category === 'vetements' ? '🧥' :
+               product.category === 'equipement' ? '⚽' : '🧢'}
+            </Text>
+          )}
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{product.category}</Text>
           </View>
@@ -145,7 +145,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
           )}
 
           {/* Size Selection (for clothing) */}
-          {(product.category === 'maillot' || product.category === 'vetement') && (
+          {(product.category === 'maillots' || product.category === 'vetements') && (
             <View style={styles.sizeSection}>
               <Text style={styles.sectionTitle}>Taille</Text>
               <View style={styles.sizesRow}>
@@ -291,6 +291,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  productImageLarge: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
   imageEmoji: {
     fontSize: 100,

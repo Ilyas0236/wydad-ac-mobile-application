@@ -61,6 +61,27 @@ router.get('/', async (req, res) => {
 // ===========================================
 // GET /matches/upcoming - Prochains matchs (public)
 // ===========================================
+// Obtenir les sections d'un match (Prix et places)
+router.get('/:id/sections', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sections = await all('SELECT * FROM match_sections WHERE match_id = ?', [id]);
+
+    // Si pas de config spécifique, retourner config par défaut basée sur STADIUM_SECTIONS
+    if (!sections || sections.length === 0) {
+      // On pourrait retourner un tableau vide, le front gérera les valeurs par défaut
+      // Ou on génère les valeurs par défaut ici. Le front devra mapper avec les icônes.
+      return res.json({ success: true, data: [] });
+    }
+
+    res.json({ success: true, data: sections });
+  } catch (error) {
+    console.error('Erreur récupération sections match:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Obtenir tous les matchs à venir
 router.get('/upcoming', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
@@ -187,6 +208,7 @@ router.post('/', authAdmin, async (req, res) => {
       match_date,
       venue,
       is_home,
+      wac_logo,
       ticket_price,
       available_seats
     } = req.body;
@@ -203,8 +225,8 @@ router.post('/', authAdmin, async (req, res) => {
     const result = await run(
       `INSERT INTO matches (
         opponent, opponent_logo, competition, match_date,
-        venue, is_home, ticket_price, available_seats, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        venue, is_home, wac_logo, ticket_price, available_seats, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         opponent,
         opponent_logo || null,
@@ -212,6 +234,7 @@ router.post('/', authAdmin, async (req, res) => {
         match_date,
         venue || 'Stade Mohammed V',
         is_home !== undefined ? is_home : 1,
+        wac_logo || null,
         ticket_price || 50.00,
         available_seats || 45000,
         'upcoming'
@@ -252,6 +275,7 @@ router.put('/:id', authAdmin, async (req, res) => {
       score_wac,
       score_opponent,
       status,
+      wac_logo,
       ticket_price,
       available_seats
     } = req.body;
@@ -278,6 +302,7 @@ router.put('/:id', authAdmin, async (req, res) => {
         score_wac = COALESCE(?, score_wac),
         score_opponent = COALESCE(?, score_opponent),
         status = COALESCE(?, status),
+        wac_logo = COALESCE(?, wac_logo),
         ticket_price = COALESCE(?, ticket_price),
         available_seats = COALESCE(?, available_seats),
         updated_at = CURRENT_TIMESTAMP
@@ -285,7 +310,7 @@ router.put('/:id', authAdmin, async (req, res) => {
       [
         opponent, opponent_logo, competition, match_date,
         venue, is_home, score_wac, score_opponent, status,
-        ticket_price, available_seats, id
+        wac_logo, ticket_price, available_seats, id
       ]
     );
 

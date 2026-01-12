@@ -2,12 +2,14 @@
 // WYDAD AC - CART CONTEXT
 // ===========================================
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,18 +18,33 @@ export const CartProvider = ({ children }) => {
     loadCart();
   }, []);
 
+  // Vider le panier quand l'utilisateur se déconnecte
+  useEffect(() => {
+    if (!isAuthenticated && !user) {
+      setItems([]);
+    }
+  }, [isAuthenticated, user]);
+
   const loadCart = async () => {
     try {
       const storedCart = await AsyncStorage.getItem('cart');
       if (storedCart) {
         setItems(JSON.parse(storedCart));
+      } else {
+        setItems([]);
       }
     } catch (error) {
       console.error('Erreur chargement panier:', error);
+      setItems([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Recharger le panier (utile après login/logout)
+  const reloadCart = useCallback(async () => {
+    await loadCart();
+  }, []);
 
   const saveCart = async (newItems) => {
     try {
@@ -58,6 +75,7 @@ export const CartProvider = ({ children }) => {
         name: product.name,
         price: product.price,
         image: product.image,
+        category: product.category,
         quantity,
         size,
         color,
@@ -128,6 +146,7 @@ export const CartProvider = ({ children }) => {
     updateQuantity,
     removeItem,
     clearCart,
+    reloadCart,
     getTotal,
     getItemCount,
     getCartForAPI,

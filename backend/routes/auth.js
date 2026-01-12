@@ -106,7 +106,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ===========================================
-// POST /auth/login - Connexion utilisateur
+// POST /auth/login - Connexion utilisateur ou admin
 // ===========================================
 router.post('/login', async (req, res) => {
   try {
@@ -120,8 +120,18 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Rechercher l'utilisateur par email
-    const user = await get('SELECT * FROM users WHERE email = ?', [email]);
+    // D'abord chercher dans la table users
+    let user = await get('SELECT * FROM users WHERE email = ?', [email]);
+    let isAdmin = false;
+
+    // Si pas trouvé dans users, chercher dans admins
+    if (!user) {
+      const admin = await get('SELECT * FROM admins WHERE email = ?', [email]);
+      if (admin) {
+        user = admin;
+        isAdmin = true;
+      }
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -130,8 +140,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Vérifier si le compte est actif
-    if (!user.is_active) {
+    // Vérifier si le compte est actif (admins sont toujours actifs car pas de champ is_active)
+    if (!isAdmin && user.is_active === 0) {
       return res.status(403).json({
         success: false,
         message: 'Votre compte a été désactivé'
@@ -153,7 +163,7 @@ router.post('/login', async (req, res) => {
       { 
         id: user.id, 
         email: user.email,
-        type: 'user'
+        type: isAdmin ? 'admin' : 'user'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -162,14 +172,15 @@ router.post('/login', async (req, res) => {
     // Réponse avec token
     res.json({
       success: true,
-      message: 'Connexion réussie! Dima Wydad! 🔴⚪',
+      message: isAdmin ? 'Bienvenue Admin! 🔴⚪' : 'Connexion réussie! Dima Wydad! 🔴⚪',
       data: {
         user: {
           id: user.id,
-          name: user.name,
+          name: user.name || user.username,
           email: user.email,
-          phone: user.phone,
-          avatar: user.avatar
+          phone: user.phone || null,
+          avatar: user.avatar || null,
+          isAdmin: isAdmin
         },
         token
       }

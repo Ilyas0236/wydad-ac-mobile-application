@@ -41,12 +41,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(email, password);
       
-      if (response.success) {
-        await AsyncStorage.setItem('userToken', response.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+      if (response.success && response.data) {
+        await AsyncStorage.setItem('userToken', response.data.token);
+        await AsyncStorage.setItem('userData', JSON.stringify(response.data.user));
         
-        setToken(response.token);
-        setUser(response.user);
+        setToken(response.data.token);
+        setUser(response.data.user);
         setIsAuthenticated(true);
         
         return { success: true };
@@ -63,12 +63,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(name, email, password);
       
-      if (response.success) {
-        await AsyncStorage.setItem('userToken', response.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+      if (response.success && response.data) {
+        await AsyncStorage.setItem('userToken', response.data.token);
+        await AsyncStorage.setItem('userData', JSON.stringify(response.data.user));
         
-        setToken(response.token);
-        setUser(response.user);
+        setToken(response.data.token);
+        setUser(response.data.user);
         setIsAuthenticated(true);
         
         return { success: true };
@@ -85,6 +85,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await AsyncStorage.removeItem('userToken');
       await AsyncStorage.removeItem('userData');
+      await AsyncStorage.removeItem('cart'); // Vider le panier à la déconnexion
       
       setToken(null);
       setUser(null);

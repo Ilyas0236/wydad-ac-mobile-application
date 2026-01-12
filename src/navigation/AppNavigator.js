@@ -26,12 +26,24 @@ import StoresScreen from '../screens/StoresScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
+import ComplaintsScreen from '../screens/ComplaintsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+
+// Admin Screens
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import AdminPlayersScreen from '../screens/admin/AdminPlayersScreen';
+import AdminMatchesScreen from '../screens/admin/AdminMatchesScreen';
+import AdminProductsScreen from '../screens/admin/AdminProductsScreen';
+import AdminNewsScreen from '../screens/admin/AdminNewsScreen';
+import AdminStoresScreen from '../screens/admin/AdminStoresScreen';
+import AdminTicketsScreen from '../screens/admin/AdminTicketsScreen';
+import AdminComplaintsScreen from '../screens/admin/AdminComplaintsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Icônes simples (texte emoji pour le moment)
-const TabIcon = ({ name, focused }) => {
+// Icônes pour utilisateur normal
+const UserTabIcon = ({ name, focused }) => {
   const icons = {
     Home: '🏠',
     Matches: '⚽',
@@ -39,30 +51,68 @@ const TabIcon = ({ name, focused }) => {
     Stores: '📍',
     Profile: '👤',
   };
-  
+
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 24 }}>{icons[name]}</Text>
-      <Text style={{ 
-        fontSize: 10, 
+      <Text style={{
+        fontSize: 10,
         color: focused ? COLORS.primary : COLORS.textSecondary,
         fontWeight: focused ? 'bold' : 'normal'
       }}>
-        {name === 'Home' ? 'Accueil' : 
-         name === 'Matches' ? 'Matchs' :
-         name === 'Shop' ? 'Boutique' :
-         name === 'Stores' ? 'Magasins' : 'Profil'}
+        {name === 'Home' ? 'Accueil' :
+          name === 'Matches' ? 'Matchs' :
+            name === 'Shop' ? 'Boutique' :
+              name === 'Stores' ? 'Magasins' : 'Profil'}
       </Text>
     </View>
   );
 };
 
-// Tab Navigator (utilisateur connecté)
-const TabNavigator = () => {
+// Icônes pour admin
+const AdminTabIcon = ({ name, focused }) => {
+  const icons = {
+    AdminHome: '🎛️',
+    AdminPlayers: '⚽',
+    AdminMatches: '🏟️',
+    AdminTickets: '🎟️',
+    AdminProducts: '🛍️',
+    AdminNews: '📰',
+    AdminStores: '🏪',
+    AdminComplaints: '💬',
+  };
+
+  const labels = {
+    AdminHome: 'Dashboard',
+    AdminPlayers: 'Joueurs',
+    AdminMatches: 'Matchs',
+    AdminTickets: 'Tickets',
+    AdminProducts: 'Produits',
+    AdminNews: 'Actualités',
+    AdminStores: 'Magasins',
+    AdminComplaints: 'Support',
+  };
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Text style={{ fontSize: 22 }}>{icons[name]}</Text>
+      <Text style={{
+        fontSize: 9,
+        color: focused ? COLORS.primary : COLORS.textSecondary,
+        fontWeight: focused ? 'bold' : 'normal'
+      }}>
+        {labels[name]}
+      </Text>
+    </View>
+  );
+};
+
+// Tab Navigator pour UTILISATEUR
+const UserTabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        tabBarIcon: ({ focused }) => <UserTabIcon name={route.name} focused={focused} />,
         tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: COLORS.card,
@@ -85,6 +135,37 @@ const TabNavigator = () => {
   );
 };
 
+// Tab Navigator pour ADMIN
+const AdminTabNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused }) => <AdminTabIcon name={route.name} focused={focused} />,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          backgroundColor: COLORS.primary,
+          borderTopColor: COLORS.primary,
+          height: 70,
+          paddingBottom: 10,
+          paddingTop: 10,
+        },
+        tabBarActiveTintColor: COLORS.textWhite,
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="AdminHome" component={AdminDashboardScreen} />
+      <Tab.Screen name="AdminPlayers" component={AdminPlayersScreen} />
+      <Tab.Screen name="AdminMatches" component={AdminMatchesScreen} />
+      <Tab.Screen name="AdminTickets" component={AdminTicketsScreen} />
+      <Tab.Screen name="AdminProducts" component={AdminProductsScreen} />
+      <Tab.Screen name="AdminNews" component={AdminNewsScreen} />
+      <Tab.Screen name="AdminStores" component={AdminStoresScreen} />
+      <Tab.Screen name="AdminComplaints" component={AdminComplaintsScreen} />
+    </Tab.Navigator>
+  );
+};
+
 // Stack pour Home
 const HomeStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -92,6 +173,7 @@ const HomeStack = () => (
     <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
     <Stack.Screen name="Players" component={PlayersScreen} />
     <Stack.Screen name="PlayerDetail" component={PlayerDetailScreen} />
+    <Stack.Screen name="Tickets" component={TicketsScreen} />
   </Stack.Navigator>
 );
 
@@ -119,12 +201,14 @@ const StoresStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour Profile
+// Stack pour Profile (utilisateur normal)
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileMain" component={ProfileScreen} />
     <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
     <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
+    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+    <Stack.Screen name="Complaints" component={ComplaintsScreen} />
   </Stack.Navigator>
 );
 
@@ -136,18 +220,25 @@ const AuthStack = () => (
   </Stack.Navigator>
 );
 
-// Main Stack (pour inclure l'auth dans la nav principale)
-const MainStack = () => (
+// User Main Stack
+const UserMainStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Tabs" component={TabNavigator} />
+    <Stack.Screen name="Tabs" component={UserTabNavigator} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
   </Stack.Navigator>
 );
 
-// Navigator principal
+// Admin Main Stack
+const AdminMainStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
+  </Stack.Navigator>
+);
+
+// Navigator principal - choisit entre User et Admin
 const AppNavigator = () => {
-  const { isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -158,9 +249,11 @@ const AppNavigator = () => {
     );
   }
 
+  // Si admin connecté -> interface admin uniquement
+  // Sinon -> interface utilisateur normale (avec ou sans connexion)
   return (
     <NavigationContainer>
-      <MainStack />
+      {user?.isAdmin ? <AdminMainStack /> : <UserMainStack />}
     </NavigationContainer>
   );
 };

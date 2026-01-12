@@ -8,9 +8,12 @@
 
 const authAdmin = require('./authAdmin');
 const { authUser, optionalAuth } = require('./authUser');
+const { upload, handleMulterError } = require('./upload');
 
 module.exports = {
   authAdmin,
   authUser,
-  optionalAuth
+  optionalAuth,
+  upload,
+  handleMulterError
 };

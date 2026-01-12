@@ -2,7 +2,7 @@
 // WYDAD AC - PROFILE SCREEN
 // ===========================================
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,23 +11,34 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AuthContext } from '../context/AuthContext';
-import { ticketsAPI, ordersAPI } from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { ticketsAPI, ordersAPI, uploadAPI } from '../services/api';
 import { COLORS, SIZES, SHADOWS } from '../theme/colors';
+import { useImagePicker } from '../hooks';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, logout, isLoading: authLoading } = useContext(AuthContext);
+  const { user, logout, updateProfile, isLoading: authLoading } = useAuth();
   const [myTickets, setMyTickets] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      loadUserData();
-    }
-  }, [user]);
+  // Hook pour sélection d'images
+  const { showImagePickerOptions } = useImagePicker();
+
+  // Rafraîchir les données à chaque fois que l'écran reçoit le focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadUserData();
+      }
+    }, [user])
+  );
 
   const loadUserData = async () => {
     setIsLoading(true);
@@ -55,6 +66,44 @@ const ProfileScreen = ({ navigation }) => {
         { text: 'Déconnexion', style: 'destructive', onPress: logout },
       ]
     );
+  };
+
+  // Fonction pour changer la photo de profil
+  const handleChangeAvatar = async () => {
+    const selectedImage = await showImagePickerOptions({
+      aspect: [1, 1],
+      quality: 0.8,
+      allowsEditing: true,
+    });
+
+    if (selectedImage) {
+      setUploadingAvatar(true);
+      try {
+        // Upload l'image
+        const uploadResult = await uploadAPI.uploadImage(
+          { uri: selectedImage.uri },
+          'profiles'
+        );
+
+        if (uploadResult.success && uploadResult.data) {
+          const avatarUrl = uploadAPI.getImageUrl(uploadResult.data.url);
+
+          // Mettre à jour le profil avec la nouvelle URL
+          const updateResult = await updateProfile({ avatar: avatarUrl });
+
+          if (updateResult.success) {
+            Alert.alert('Succès', 'Photo de profil mise à jour!');
+          } else {
+            Alert.alert('Erreur', updateResult.message || 'Erreur lors de la mise à jour');
+          }
+        }
+      } catch (error) {
+        console.error('Erreur changement avatar:', error);
+        Alert.alert('Erreur', error.message || 'Impossible de changer la photo');
+      } finally {
+        setUploadingAvatar(false);
+      }
+    }
   };
 
   // Not logged in view
@@ -103,16 +152,35 @@ const ProfileScreen = ({ navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* User Card */}
         <View style={styles.userCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
-            </Text>
-          </View>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleChangeAvatar}
+            disabled={uploadingAvatar}
+          >
+            {user.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {user.name?.charAt(0) || 'U'}
+                </Text>
+              </View>
+            )}
+            {uploadingAvatar ? (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color={COLORS.textWhite} />
+              </View>
+            ) : (
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditIcon}>📷</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <Text style={styles.userName}>
-            {user.first_name} {user.last_name}
+            {user.name || 'Utilisateur'}
           </Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          
+
           {/* Member Badge */}
           <View style={styles.memberBadge}>
             <Text style={styles.memberText}>🏆 Membre WAC</Text>
@@ -176,20 +244,26 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Support</Text>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Complaints')}
+          >
             <Text style={styles.menuIcon}>❓</Text>
             <View style={styles.menuInfo}>
-              <Text style={styles.menuTitle}>FAQ</Text>
-              <Text style={styles.menuSubtitle}>Questions fréquentes</Text>
+              <Text style={styles.menuTitle}>Mes Réclamations</Text>
+              <Text style={styles.menuSubtitle}>Questions / Problèmes</Text>
             </View>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => Linking.openURL('tel:+212522000000')}
+          >
             <Text style={styles.menuIcon}>📞</Text>
             <View style={styles.menuInfo}>
               <Text style={styles.menuTitle}>Nous contacter</Text>
-              <Text style={styles.menuSubtitle}>support@wac.ma</Text>
+              <Text style={styles.menuSubtitle}>+212 522 00 00 00</Text>
             </View>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
@@ -280,6 +354,10 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     paddingBottom: 40,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 15,
+  },
   avatar: {
     width: 80,
     height: 80,
@@ -287,13 +365,46 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    ...SHADOWS.medium,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     ...SHADOWS.medium,
   },
   avatarText: {
     fontSize: 28,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.card,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    ...SHADOWS.small,
+  },
+  avatarEditIcon: {
+    fontSize: 14,
   },
   userName: {
     fontSize: 22,
@@ -398,6 +509,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textLight,
     marginTop: 5,
+  },
+  adminMenuItem: {
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
   },
 });
 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "wydadapplication",
+    "name": "Wydad AC",
     "slug": "wydadapplication",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,20 +10,47 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#BE1931"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wydadac.app",
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cette application utilise votre position pour trouver les magasins Wydad AC les plus proches.",
+        "NSLocationAlwaysUsageDescription": "Cette application utilise votre position pour trouver les magasins Wydad AC."
+      }
     },
     "android": {
+      "package": "com.wydadac.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#BE1931"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permettre à Wydad AC d'utiliser votre position pour trouver les magasins proches."
+        }
+      ]
+    ]
   }
 }

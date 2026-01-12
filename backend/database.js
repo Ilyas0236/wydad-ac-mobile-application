@@ -29,7 +29,7 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 const initDatabase = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      
+
       // -----------------------------------------
       // TABLE: ADMINS
       // Administrateurs de l'application
@@ -138,6 +138,7 @@ const initDatabase = () => {
           score_wac INTEGER,
           score_opponent INTEGER,
           status VARCHAR(20) DEFAULT 'upcoming',
+          wac_logo VARCHAR(255),
           ticket_price DECIMAL(10,2) DEFAULT 50.00,
           available_seats INTEGER DEFAULT 45000,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -146,6 +147,27 @@ const initDatabase = () => {
       `, (err) => {
         if (err) console.error('Erreur création table matches:', err.message);
         else console.log('📋 Table matches créée');
+      });
+
+      // -----------------------------------------
+      // TABLE: MATCH_SECTIONS
+      // Configuration des billets par section pour un match
+      // -----------------------------------------
+      db.run(`
+        CREATE TABLE IF NOT EXISTS match_sections (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          match_id INTEGER NOT NULL,
+          category_key VARCHAR(50) NOT NULL,
+          price DECIMAL(10,2) NOT NULL,
+          capacity INTEGER DEFAULT 1000,
+          sold INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (match_id) REFERENCES matches(id),
+          UNIQUE(match_id, category_key)
+        )
+      `, (err) => {
+        if (err) console.error('Erreur création table match_sections:', err.message);
+        else console.log('📋 Table match_sections créée');
       });
 
       // -----------------------------------------
@@ -209,14 +231,17 @@ const initDatabase = () => {
         CREATE TABLE IF NOT EXISTS orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
+          order_number VARCHAR(50),
           total_amount DECIMAL(10,2) NOT NULL,
+          shipping_fee DECIMAL(10,2) DEFAULT 0,
           status VARCHAR(20) DEFAULT 'pending',
           shipping_address TEXT,
           shipping_city VARCHAR(100),
           shipping_phone VARCHAR(20),
           payment_method VARCHAR(50),
+          payment_ref VARCHAR(100),
           payment_status VARCHAR(20) DEFAULT 'pending',
-          payment_date DATETIME,
+          paid_at DATETIME,
           notes TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -236,8 +261,10 @@ const initDatabase = () => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           order_id INTEGER NOT NULL,
           product_id INTEGER NOT NULL,
+          product_name VARCHAR(255),
           quantity INTEGER NOT NULL,
-          price DECIMAL(10,2) NOT NULL,
+          unit_price DECIMAL(10,2),
+          total_price DECIMAL(10,2),
           size VARCHAR(20),
           color VARCHAR(30),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -273,17 +300,36 @@ const initDatabase = () => {
         )
       `, (err) => {
         if (err) console.error('Erreur création table stores:', err.message);
-        else console.log('📋 Table stores créée');
+        // -----------------------------------------
+        // TABLE: COMPLAINTS (RÉCLAMATIONS)
+        // Réclamations des utilisateurs
+        // -----------------------------------------
+        db.run(`
+        CREATE TABLE IF NOT EXISTS complaints (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          subject VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          admin_response TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `, (err) => {
+          if (err) console.error('Erreur création table complaints:', err.message);
+          else console.log('📋 Table complaints créée');
+        });
+
+        // Résolution après création de toutes les tables
+        setTimeout(() => {
+          console.log('===========================================');
+          console.log('✅ Toutes les tables ont été initialisées');
+          console.log('===========================================');
+          resolve();
+        }, 100);
+
       });
-
-      // Résolution après création de toutes les tables
-      setTimeout(() => {
-        console.log('===========================================');
-        console.log('✅ Toutes les tables ont été initialisées');
-        console.log('===========================================');
-        resolve();
-      }, 100);
-
     });
   });
 };
@@ -297,7 +343,7 @@ const initDatabase = () => {
  */
 const run = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    db.run(sql, params, function (err) {
       if (err) {
         reject(err);
       } else {
