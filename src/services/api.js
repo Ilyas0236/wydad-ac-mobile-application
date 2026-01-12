@@ -4,13 +4,29 @@
 
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// Configuration de base
-// Pour device physique, utilisez l'IP de votre machine
-// Pour device physique, utilisez l'IP de votre machine
-const API_URL = 'http://192.168.0.142:3000'; // Votre IP locale
-// const API_URL = 'http://10.0.2.2:3000'; // Android Emulator
-// const API_URL = 'http://localhost:3000'; // iOS Simulator
+// Configuration automatique de l'IP
+// Détecte automatiquement l'IP du serveur de développement Expo
+const getApiUrl = () => {
+  // En production, utiliser l'URL de production
+  // return 'https://api.wydadac.ma';
+
+  // En développement, détecter l'IP automatiquement
+  const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
+
+  if (debuggerHost) {
+    // Extraire l'IP du debuggerHost (format: "192.168.1.100:8081")
+    const host = debuggerHost.split(':')[0];
+    return `http://${host}:3000`;
+  }
+
+  // Fallback pour émulateur Android
+  return 'http://10.0.2.2:3000';
+};
+
+const API_URL = getApiUrl();
+console.log('API URL:', API_URL); // Pour debug
 
 // Création de l'instance Axios
 const api = axios.create({
